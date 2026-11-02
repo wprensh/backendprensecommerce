@@ -31,6 +31,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     public DbSet<Product> Products => Set<Product>();
 
+    public DbSet<Brand> Brands => Set<Brand>();
+
     // sales
     public DbSet<Order> Orders => Set<Order>();
 

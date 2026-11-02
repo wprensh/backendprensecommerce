@@ -18,6 +18,18 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
     }
 }
 
+internal sealed class BrandConfiguration : IEntityTypeConfiguration<Brand>
+{
+    public void Configure(EntityTypeBuilder<Brand> builder)
+    {
+        builder.ToTable("brands", Schemas.Catalog);
+        builder.Property(b => b.Name).HasMaxLength(100);
+        builder.Property(b => b.Slug).HasMaxLength(100);
+        builder.Property(b => b.LogoUrl).HasMaxLength(1000);
+        builder.HasIndex(b => new { b.TenantId, b.Slug }).IsUnique();
+    }
+}
+
 internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 {
     public void Configure(EntityTypeBuilder<Product> builder)
@@ -38,6 +50,7 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Ignore(p => p.FinalPrice);
 
         builder.HasOne(p => p.Category).WithMany().HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(p => p.Brand).WithMany().HasForeignKey(p => p.BrandId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(p => new { p.TenantId, p.Sku }).IsUnique().HasFilter("sku IS NOT NULL");
         builder.HasIndex(p => new { p.TenantId, p.CategoryId });
     }
