@@ -6,6 +6,7 @@ public enum ErrorType
     NotFound,
     Conflict,
     Unauthorized,
+    PaymentFailed,
 }
 
 public sealed record Error(string Code, string Message, ErrorType Type)
@@ -17,6 +18,8 @@ public sealed record Error(string Code, string Message, ErrorType Type)
     public static Error Validation(string code, string message) => new(code, message, ErrorType.Validation);
 
     public static Error Unauthorized(string code, string message) => new(code, message, ErrorType.Unauthorized);
+
+    public static Error PaymentFailed(string code, string message) => new(code, message, ErrorType.PaymentFailed);
 }
 
 /// <summary>Resultado de un caso de uso: valor o error de negocio, sin excepciones para el flujo esperado.</summary>
@@ -49,6 +52,7 @@ public static class ResultExtensions
             ErrorType.NotFound => StatusCodes.Status404NotFound,
             ErrorType.Conflict => StatusCodes.Status409Conflict,
             ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+            ErrorType.PaymentFailed => StatusCodes.Status402PaymentRequired,
             _ => StatusCodes.Status500InternalServerError,
         },
         title: error.Code,

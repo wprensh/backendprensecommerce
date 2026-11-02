@@ -14,6 +14,8 @@ using PrensEcommerce.Api.Common.Security;
 using PrensEcommerce.Api.Domain;
 using PrensEcommerce.Api.Features.Auth;
 using PrensEcommerce.Api.Features.Cart;
+using PrensEcommerce.Api.Features.Checkout;
+using PrensEcommerce.Api.Infrastructure.Payments;
 using PrensEcommerce.Api.Infrastructure.MultiTenancy;
 using PrensEcommerce.Api.Infrastructure.Persistence;
 
@@ -96,6 +98,13 @@ builder.Services.AddFeatureSlices(typeof(Program).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
 builder.Services.AddScoped<CartStore>();
 builder.Services.AddScoped<AuthResponseFactory>();
+
+// Checkout y pagos: reglas de precio + pasarela enchufable (Payments:Provider).
+builder.Services.AddOptions<CheckoutOptions>()
+    .Bind(configuration.GetSection(CheckoutOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddPayments(configuration);
 
 // ─────────────────────────────────────────────────────────────
 // 6. Transversales · errores, OpenAPI, CORS, health checks

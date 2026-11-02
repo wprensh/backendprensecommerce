@@ -9,6 +9,9 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
     public void Configure(EntityTypeBuilder<Order> builder)
     {
         builder.ToTable("orders", Schemas.Sales);
+        builder.Property(o => o.OrderNumber).HasMaxLength(32);
+        builder.Property(o => o.Subtotal).HasPrecision(12, 2);
+        builder.Property(o => o.ShippingCost).HasPrecision(12, 2);
         builder.Property(o => o.Total).HasPrecision(12, 2);
         builder.Property(o => o.Currency).HasMaxLength(3);
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
@@ -27,6 +30,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasOne<User>().WithMany().HasForeignKey(o => o.UserId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(o => new { o.TenantId, o.UserId });
         builder.HasIndex(o => new { o.TenantId, o.Status });
+        builder.HasIndex(o => new { o.TenantId, o.OrderNumber }).IsUnique();
     }
 }
 
