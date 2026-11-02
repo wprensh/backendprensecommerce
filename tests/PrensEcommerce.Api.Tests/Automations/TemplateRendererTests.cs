@@ -15,9 +15,9 @@ public class TemplateRendererTests
     }
 
     [Fact]
-    public void FormatMoney_uses_spanish_separators_even_with_invariant_globalization()
+    public void FormatMoney_uses_colombian_pesos_even_with_invariant_globalization()
     {
-        Assert.Equal("1.234,50", TemplateRenderer.FormatMoney(1234.5m));
+        Assert.Equal("$ 1.234.567", TemplateRenderer.FormatMoney(1234567m));
         Assert.Equal(string.Empty, TemplateRenderer.FormatMoney(null));
     }
 

@@ -27,7 +27,7 @@ public class AutomationActionsTests
     public async Task SendEmail_renders_builtin_template_with_order_data()
     {
         var sender = new RecordingSender();
-        var payload = new JsonObject { ["referenceId"] = Guid.Parse("01a19dd4-6438-7523-928b-b37fa490c4df"), ["amount"] = 159.98m };
+        var payload = new JsonObject { ["referenceId"] = Guid.Parse("01a19dd4-6438-7523-928b-b37fa490c4df"), ["amount"] = 159980m };
         var context = new AutomationContext(
             Rule(AutomationTrigger.OrderPlaced, AutomationAction.SendEmail, """{"template":"order-confirmation"}"""), Customer(), payload, "Prens");
 
@@ -36,7 +36,7 @@ public class AutomationActionsTests
         Assert.Equal(AutomationRunStatus.Succeeded, outcome.Status);
         var mail = Assert.Single(sender.Sent);
         Assert.Equal("Hemos recibido tu pedido 01A19DD4", mail.Subject);
-        Assert.Contains("159,98 €", mail.Body, StringComparison.Ordinal);
+        Assert.Contains("$ 159.980", mail.Body, StringComparison.Ordinal);
         Assert.True(outcome.Result!["simulated"]!.GetValue<bool>());
     }
 

@@ -8,14 +8,15 @@ public static partial class TemplateRenderer
 {
     public static readonly IReadOnlyList<string> Variables = ["nombre", "email", "tienda", "pedido", "total", "unidades"];
 
-    // InvariantGlobalization está activo: formato español (1.234,56) definido a mano.
+    // InvariantGlobalization está activo: formato de peso colombiano (es-CO) definido a mano.
     private static readonly NumberFormatInfo Money = new() { NumberDecimalSeparator = ",", NumberGroupSeparator = "." };
 
     public static string Render(string template, IReadOnlyDictionary<string, string?> values) =>
         VariablePattern().Replace(template, match =>
             values.TryGetValue(match.Groups[1].Value.ToLowerInvariant(), out var value) ? value ?? string.Empty : string.Empty);
 
-    public static string FormatMoney(decimal? amount) => amount?.ToString("N2", Money) ?? string.Empty;
+    /// <summary>Pesos colombianos sin decimales: <c>$ 1.234.567</c>.</summary>
+    public static string FormatMoney(decimal? amount) => amount is { } value ? "$ " + value.ToString("N0", Money) : string.Empty;
 
     /// <summary>Número de pedido corto y legible (primeros 8 caracteres del Id).</summary>
     public static string ShortReference(Guid? id) =>
@@ -37,10 +38,10 @@ public static class DefaultEmailTemplates
             "Hola {{nombre}},\n\nGracias por registrarte en {{tienda}}. Ya puedes descubrir nuestro catálogo y guardar tus productos favoritos.\n\nUn saludo,\nEl equipo de {{tienda}}"),
         new("order-confirmation", "Confirmación de pedido",
             "Hemos recibido tu pedido {{pedido}}",
-            "Hola {{nombre}},\n\nHemos recibido tu pedido {{pedido}} por un total de {{total}} €. Te avisaremos cuando se confirme el pago.\n\nGracias por comprar en {{tienda}}."),
+            "Hola {{nombre}},\n\nHemos recibido tu pedido {{pedido}} por un total de {{total}}. Te avisaremos cuando se confirme el pago.\n\nGracias por comprar en {{tienda}}."),
         new("order-paid", "Pago confirmado",
             "Pago confirmado: pedido {{pedido}}",
-            "Hola {{nombre}},\n\nHemos confirmado el pago de tu pedido {{pedido}} ({{total}} €). Lo estamos preparando para el envío.\n\nEl equipo de {{tienda}}"),
+            "Hola {{nombre}},\n\nHemos confirmado el pago de tu pedido {{pedido}} ({{total}}). Lo estamos preparando para el envío.\n\nEl equipo de {{tienda}}"),
         new("cart-reminder", "Carrito abandonado",
             "{{nombre}}, tus productos te esperan",
             "Hola {{nombre}},\n\nDejaste {{unidades}} producto(s) en tu carrito de {{tienda}}. Los hemos guardado para ti: vuelve cuando quieras para terminar tu compra.\n\nUn saludo."),
