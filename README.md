@@ -157,6 +157,37 @@ curl http://demo.localhost:5080/api/tenant          # resolución por subdominio
 
 `sort` acepta los valores del frontend: `relevance`, `price-asc`, `price-desc`, `rating`.
 
+### Atención al cliente y fidelización
+
+**Soporte** (`Features/Support`, esquema `support`)
+
+| Método | Ruta | Quién |
+|---|---|---|
+| POST | `/api/support/tickets` | Cliente: abre un caso (asunto, categoría, mensaje, pedido opcional) |
+| GET | `/api/support/tickets` · `/api/support/tickets/{id}` | Cliente: sus casos y la conversación (sin notas internas) |
+| POST | `/api/support/tickets/{id}/messages` | Cliente: responde (el caso vuelve a `open`) |
+| POST | `/api/support/tickets/{id}/rating` | Cliente: valora 1–5 un caso resuelto |
+| GET | `/api/admin/support/tickets?status=&priority=&search=` | Agente: bandeja con contadores y nota media |
+| GET/PATCH | `/api/admin/support/tickets/{id}` | Agente: detalle; cambia estado/prioridad |
+| POST | `/api/admin/support/tickets/{id}/messages` | Agente: responde (`waitingCustomer`) o nota interna (`isInternal: true`) |
+
+Cada caso tiene un número correlativo por tienda (`TK-000001`). Pagos y devoluciones entran con prioridad alta.
+
+**Fidelización** (`Features/Loyalty`, esquema `crm`)
+
+| Método | Ruta | Quién |
+|---|---|---|
+| GET | `/api/loyalty/me` | Cliente: saldo, nivel, progreso, movimientos y cupones activos |
+| POST | `/api/loyalty/redeem` | Cliente: canjea puntos por un cupón `PR-XXXXXXXX` |
+| POST | `/api/admin/loyalty/adjustments` | Admin/Marketing: bonificación o corrección manual |
+
+Reglas por defecto (sección `Loyalty` de appsettings): 1 punto por euro, 100 puntos = 1 €, canje mínimo 500,
+cupones válidos 90 días. Niveles por puntos históricos: Bronce 0, Plata 1 000 (×1,25), Oro 5 000 (×1,5),
+Platino 15 000 (×2). El checkout (`POST /api/checkout`) acepta `voucherCode` y devuelve `loyaltyDiscount` y `pointsEarned`.
+
+Políticas: `support-agent` (rol Admin o CustomerService, o permiso `support.write`) y `loyalty-manager`
+(rol Admin o Marketing, o permiso `crm.write`).
+
 ### Migraciones
 
 Sin .NET, puedes crear todo con el script: `psql -d prens_ecommerce -f database/schema.sql`.

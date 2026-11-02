@@ -8,6 +8,7 @@ using PrensEcommerce.Api.Common.Security;
 using PrensEcommerce.Api.Common.Validation;
 using PrensEcommerce.Api.Domain;
 using PrensEcommerce.Api.Features.Cart;
+using PrensEcommerce.Api.Features.Loyalty;
 using PrensEcommerce.Api.Infrastructure.Payments;
 using PrensEcommerce.Api.Infrastructure.Persistence;
 
@@ -27,11 +28,13 @@ public static class PlaceOrder
 
     /// <param name="Items">Líneas a pagar. Si se omite, se usa el carrito del usuario guardado en Redis.</param>
     /// <param name="PaymentToken">Token de tarjeta generado por el SDK del proveedor en el navegador.</param>
+    /// <param name="VoucherCode">Cupón obtenido al canjear Prens Puntos (opcional).</param>
     public sealed record Command(
         ShippingAddress ShippingAddress,
         PaymentMethod PaymentMethod,
         string? PaymentToken = null,
-        IReadOnlyList<Line>? Items = null);
+        IReadOnlyList<Line>? Items = null,
+        string? VoucherCode = null);
 
     public sealed record PaymentSummary(PaymentStatus Status, string Provider, string? Reference, string? Instructions);
 
@@ -41,9 +44,11 @@ public static class PlaceOrder
         OrderStatus Status,
         decimal Subtotal,
         decimal ShippingCost,
+        decimal LoyaltyDiscount,
         decimal Total,
         string Currency,
-        PaymentSummary Payment);
+        PaymentSummary Payment,
+        int PointsEarned);
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -59,6 +64,7 @@ public static class PlaceOrder
                 .NotEmpty().WithMessage("El pago con tarjeta requiere un token.")
                 .MaximumLength(500)
                 .When(c => c.PaymentMethod == PaymentMethod.Card);
+            RuleFor(c => c.VoucherCode).MaximumLength(20);
             RuleFor(c => c.Items).Must(items => items!.Count <= 100).When(c => c.Items is not null);
             RuleForEach(c => c.Items).ChildRules(line =>
             {
@@ -87,6 +93,7 @@ public static class PlaceOrder
         CartStore carts,
         AppDbContext db,
         IPaymentGateway gateway,
+        LoyaltyService loyalty,
         IOptions<CheckoutOptions> options,
         TimeProvider clock,
         ILogger<Handler> logger) : IHandler
@@ -139,7 +146,22 @@ public static class PlaceOrder
 
             order.Subtotal = order.Items.Sum(i => i.UnitPrice * i.Quantity);
             order.ShippingCost = settings.ShippingFor(order.Subtotal);
-            order.Total = order.Subtotal + order.ShippingCost;
+
+            // Cupón de Prens Puntos: descuenta sobre el subtotal (no sobre el envío). Si el cobro falla
+            // no se guarda nada, así que el cupón sigue disponible.
+            if (!string.IsNullOrWhiteSpace(command.VoucherCode))
+            {
+                var discount = await loyalty.ApplyVoucherAsync(userId, command.VoucherCode, order.Subtotal, ct);
+                if (!discount.IsSuccess)
+                {
+                    return discount.Error!;
+                }
+
+                order.LoyaltyDiscount = discount.Value;
+                loyalty.LinkVoucherToOrder(command.VoucherCode, order);
+            }
+
+            order.Total = order.Subtotal - order.LoyaltyDiscount + order.ShippingCost;
 
             var charge = await gateway.ChargeAsync(
                 new PaymentRequest(order.Id, order.OrderNumber, order.Total, order.Currency, command.PaymentMethod, command.PaymentToken),
@@ -168,6 +190,7 @@ public static class PlaceOrder
             }
 
             db.Orders.Add(order);
+            var pointsEarned = await loyalty.AwardForOrderAsync(order, ct);
 
             try
             {
@@ -192,9 +215,11 @@ public static class PlaceOrder
                 order.Status,
                 order.Subtotal,
                 order.ShippingCost,
+                order.LoyaltyDiscount,
                 order.Total,
                 order.Currency,
-                new PaymentSummary(charge.Status, gateway.Name, charge.ProviderReference, charge.Instructions));
+                new PaymentSummary(charge.Status, gateway.Name, charge.ProviderReference, charge.Instructions),
+                pointsEarned);
         }
 
         private static List<Line> MergeDuplicates(IReadOnlyList<Line> items) =>

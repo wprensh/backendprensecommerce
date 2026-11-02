@@ -13,6 +13,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Subtotal).HasPrecision(12, 2);
         builder.Property(o => o.ShippingCost).HasPrecision(12, 2);
         builder.Property(o => o.Total).HasPrecision(12, 2);
+        builder.Property(o => o.LoyaltyDiscount).HasPrecision(12, 2);
         builder.Property(o => o.Currency).HasMaxLength(3);
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(o => o.PaymentMethod).HasConversion<string>().HasMaxLength(20);

@@ -44,6 +44,9 @@ public sealed class Order : TenantEntity
 
     public decimal ShippingCost { get; set; }
 
+    /// <summary>Descuento aplicado con un cupón de puntos de fidelización.</summary>
+    public decimal LoyaltyDiscount { get; set; }
+
     public decimal Total { get; set; }
 
     public string Currency { get; set; } = "EUR";

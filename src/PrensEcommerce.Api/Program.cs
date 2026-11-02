@@ -16,6 +16,8 @@ using PrensEcommerce.Api.Features.Auth;
 using PrensEcommerce.Api.Features.Cart;
 using PrensEcommerce.Api.Features.Checkout;
 using PrensEcommerce.Api.Infrastructure.Payments;
+using PrensEcommerce.Api.Features.Loyalty;
+using PrensEcommerce.Api.Features.Support;
 using PrensEcommerce.Api.Infrastructure.MultiTenancy;
 using PrensEcommerce.Api.Infrastructure.Persistence;
 
@@ -85,7 +87,7 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             RoleClaimType = AppClaims.Role,
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorizationBuilder().AddAppPolicies();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
@@ -98,6 +100,12 @@ builder.Services.AddFeatureSlices(typeof(Program).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
 builder.Services.AddScoped<CartStore>();
 builder.Services.AddScoped<AuthResponseFactory>();
+builder.Services.AddScoped<TicketQueries>();
+builder.Services.AddScoped<LoyaltyService>();
+builder.Services.AddOptions<LoyaltyOptions>()
+    .Bind(configuration.GetSection(LoyaltyOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 // Checkout y pagos: reglas de precio + pasarela enchufable (Payments:Provider).
 builder.Services.AddOptions<CheckoutOptions>()
