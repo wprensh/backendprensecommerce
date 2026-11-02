@@ -11,7 +11,7 @@ public class SimulatedPaymentGatewayTests
         Options.Create(new PaymentOptions()), NullLogger<SimulatedPaymentGateway>.Instance);
 
     private static PaymentRequest Request(PaymentMethod method, string? token = null) =>
-        new(Guid.NewGuid(), "PR-20261102-ABCDEF", 105m, "EUR", method, token);
+        new(Guid.NewGuid(), "PR-20261102-ABCDEF", 105_000m, "COP", method, token);
 
     [Theory]
     [InlineData("tok_sim_visa_4242")]

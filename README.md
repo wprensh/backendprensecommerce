@@ -181,7 +181,7 @@ Cada caso tiene un número correlativo por tienda (`TK-000001`). Pagos y devoluc
 | POST | `/api/loyalty/redeem` | Cliente: canjea puntos por un cupón `PR-XXXXXXXX` |
 | POST | `/api/admin/loyalty/adjustments` | Admin/Marketing: bonificación o corrección manual |
 
-Reglas por defecto (sección `Loyalty` de appsettings): 1 punto por euro, 100 puntos = 1 €, canje mínimo 500,
+Reglas por defecto (sección `Loyalty` de appsettings, importes en COP): 1 punto por cada $1.000, 1 punto = $10 (1 % de devolución), canje mínimo 500 puntos ($5.000),
 cupones válidos 90 días. Niveles por puntos históricos: Bronce 0, Plata 1 000 (×1,25), Oro 5 000 (×1,5),
 Platino 15 000 (×2). El checkout (`POST /api/checkout`) acepta `voucherCode` y devuelve `loyaltyDiscount` y `pointsEarned`.
 

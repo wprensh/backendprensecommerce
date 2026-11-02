@@ -74,7 +74,7 @@ public static class GetMyLoyalty
                 next is null ? null : ToInfo(next),
                 next is null ? 0 : next.MinLifetimePoints - lifetime,
                 options.PointValue,
-                Math.Round(balance * options.PointValue, 2),
+                Math.Round(balance * options.PointValue, 0, MidpointRounding.AwayFromZero),
                 options.MinRedeemPoints,
                 transactions,
                 vouchers);
