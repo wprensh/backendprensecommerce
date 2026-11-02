@@ -56,14 +56,22 @@ public sealed class AutomationEngine(
             .Take(_options.BatchSize)
             .ToListAsync(ct);
 
+        // Número de pedido legible (PE-000123) para las plantillas.
+        var orderIds = events.Where(e => e.ReferenceId != null && e.Type is AutomationTrigger.OrderPlaced or AutomationTrigger.OrderPaid)
+            .Select(e => e.ReferenceId!.Value).Distinct().ToList();
+        var orderNumbers = orderIds.Count == 0
+            ? []
+            : await db.Orders.AsNoTracking().Where(o => orderIds.Contains(o.Id)).ToDictionaryAsync(o => o.Id, o => o.OrderNumber, ct);
+
         var runs = new List<AutomationRun>();
         foreach (var evt in events)
         {
             evt.ProcessedAt = now;
+            var orderNumber = evt.ReferenceId is { } refId && orderNumbers.TryGetValue(refId, out var number) ? number : null;
             foreach (var rule in rules.Where(r => r.Trigger == evt.Type))
             {
                 runs.Add(NewRun(rule, evt.UserId, evt.OccurredAt.AddMinutes(rule.DelayMinutes), $"{rule.Id:N}:e:{evt.Id:N}",
-                    new JsonObject { ["eventId"] = evt.Id, ["referenceId"] = evt.ReferenceId, ["amount"] = evt.Amount }));
+                    new JsonObject { ["eventId"] = evt.Id, ["referenceId"] = evt.ReferenceId, ["orderNumber"] = orderNumber, ["amount"] = evt.Amount }));
             }
         }
 
@@ -197,6 +205,11 @@ public sealed class AutomationEngine(
         if (run.UserId is not { } userId || !users.TryGetValue(userId, out var user))
         {
             return ActionOutcome.Skipped("El cliente ya no existe.");
+        }
+
+        if (rule.Action == AutomationAction.AwardPoints)
+        {
+            return ActionOutcome.Skipped("Los puntos los asigna el programa de fidelización al pagar el pedido.");
         }
 
         if (!_handlers.TryGetValue(rule.Action, out var handler))

@@ -37,6 +37,12 @@ internal sealed class CustomerEventsInterceptor(TimeProvider clock) : SaveChange
 
         foreach (var entry in context.ChangeTracker.Entries())
         {
+            // Un pedido cobrado al momento (pasarela síncrona) se crea ya pagado: emite ambos eventos.
+            if (entry is { Entity: Order { Status: OrderStatus.Paid } paidOrder, State: EntityState.Added })
+            {
+                events.Add(NewEvent(paidOrder.TenantId, paidOrder.UserId, AutomationTrigger.OrderPaid, paidOrder.Id, paidOrder.Total, now));
+            }
+
             var evt = entry.Entity switch
             {
                 User user when entry.State == EntityState.Added =>

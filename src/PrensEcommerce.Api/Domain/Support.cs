@@ -28,8 +28,27 @@ public enum TicketChannel
     WhatsApp = 4,
 }
 
+public enum TicketCategory
+{
+    Order = 0,
+    Product = 1,
+    Payment = 2,
+    Shipping = 3,
+    Return = 4,
+    Other = 5,
+}
+
+/// <summary>
+/// Caso de atención al cliente. Las reglas de transición de estado viven aquí (y no en los
+/// handlers) para que cliente y agentes compartan las mismas reglas.
+/// </summary>
 public sealed class SupportTicket : TenantEntity
 {
+    /// <summary>Número correlativo por tienda, visible para el cliente (TK-000123).</summary>
+    public int Number { get; set; }
+
+    public TicketCategory Category { get; set; } = TicketCategory.Other;
+
     /// <summary>Cliente que abre el ticket (null si es un visitante sin cuenta).</summary>
     public Guid? CustomerId { get; set; }
 
@@ -53,7 +72,41 @@ public sealed class SupportTicket : TenantEntity
     /// <summary>Valoración del cliente al cerrar (1–5).</summary>
     public int? SatisfactionScore { get; set; }
 
+    public string? SatisfactionComment { get; set; }
+
     public List<TicketMessage> Messages { get; init; } = [];
+
+    public string Code => FormatCode(Number);
+
+    public bool IsClosed => Status == TicketStatus.Closed;
+
+    public bool CanBeRated => Status is TicketStatus.Resolved or TicketStatus.Closed && SatisfactionScore is null;
+
+    public static string FormatCode(int number) => $"TK-{number:D6}";
+
+    /// <summary>
+    /// Añade un mensaje. Respuesta del agente → espera al cliente; respuesta del cliente → vuelve a la cola.
+    /// Las notas internas no cambian el estado.
+    /// </summary>
+    public TicketMessage AddMessage(Guid? authorId, bool fromStaff, string body, bool isInternal = false)
+    {
+        var message = new TicketMessage { TicketId = Id, AuthorId = authorId, Body = body, IsInternal = isInternal };
+        Messages.Add(message);
+
+        if (!isInternal)
+        {
+            Status = fromStaff ? TicketStatus.WaitingCustomer : TicketStatus.Open;
+            ClosedAt = null;
+        }
+
+        return message;
+    }
+
+    public void ChangeStatus(TicketStatus status, DateTimeOffset now)
+    {
+        Status = status;
+        ClosedAt = status is TicketStatus.Resolved or TicketStatus.Closed ? ClosedAt ?? now : null;
+    }
 }
 
 public sealed class TicketMessage : TenantEntity

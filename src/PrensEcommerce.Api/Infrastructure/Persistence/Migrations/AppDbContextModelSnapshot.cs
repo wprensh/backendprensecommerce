@@ -454,7 +454,12 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("LifetimePoints")
+                        .HasColumnType("integer")
+                        .HasColumnName("lifetime_points");
+
                     b.Property<int>("PointsBalance")
+                        .IsConcurrencyToken()
                         .HasColumnType("integer")
                         .HasColumnName("points_balance");
 
@@ -539,16 +544,88 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_loyalty_transactions");
 
-                    b.HasIndex("AccountId")
-                        .HasDatabaseName("ix_loyalty_transactions_account_id");
-
                     b.HasIndex("OrderId")
                         .HasDatabaseName("ix_loyalty_transactions_order_id");
 
                     b.HasIndex("TenantId")
                         .HasDatabaseName("ix_loyalty_transactions_tenant_id");
 
+                    b.HasIndex("AccountId", "CreatedAt")
+                        .HasDatabaseName("ix_loyalty_transactions_account_id_created_at");
+
                     b.ToTable("loyalty_transactions", "crm");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.LoyaltyVoucher", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("integer")
+                        .HasColumnName("points");
+
+                    b.Property<DateTimeOffset?>("RedeemedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("redeemed_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_loyalty_vouchers");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_loyalty_vouchers_order_id");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_loyalty_vouchers_tenant_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_loyalty_vouchers_user_id");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loyalty_vouchers_tenant_id_code");
+
+                    b.HasIndex("TenantId", "UserId")
+                        .HasDatabaseName("ix_loyalty_vouchers_tenant_id_user_id");
+
+                    b.ToTable("loyalty_vouchers", "crm");
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.Order", b =>
@@ -568,17 +645,38 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(3)")
                         .HasColumnName("currency");
 
+                    b.Property<decimal>("LoyaltyDiscount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("loyalty_discount");
+
+                    b.Property<string>("OrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("order_number");
+
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("payment_method");
 
+                    b.Property<decimal>("ShippingCost")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("shipping_cost");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("subtotal");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
@@ -605,6 +703,10 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_orders_user_id");
+
+                    b.HasIndex("TenantId", "OrderNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_tenant_id_order_number");
 
                     b.HasIndex("TenantId", "Status")
                         .HasDatabaseName("ix_orders_tenant_id_status");
@@ -915,6 +1017,12 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("assigned_to_id");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("category");
+
                     b.Property<string>("Channel")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -938,6 +1046,10 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_id");
 
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uuid")
                         .HasColumnName("order_id");
@@ -947,6 +1059,11 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("priority");
+
+                    b.Property<string>("SatisfactionComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("satisfaction_comment");
 
                     b.Property<int?>("SatisfactionScore")
                         .HasColumnType("integer")
@@ -986,6 +1103,13 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId")
                         .HasDatabaseName("ix_tickets_tenant_id");
+
+                    b.HasIndex("TenantId", "CustomerId")
+                        .HasDatabaseName("ix_tickets_tenant_id_customer_id");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tickets_tenant_id_number");
 
                     b.HasIndex("TenantId", "Status")
                         .HasDatabaseName("ix_tickets_tenant_id_status");
@@ -1413,6 +1537,29 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_loyalty_transactions_tenants_tenant_id");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.LoyaltyVoucher", b =>
+                {
+                    b.HasOne("PrensEcommerce.Api.Domain.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_loyalty_vouchers_orders_order_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_loyalty_vouchers_tenants_tenant_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_loyalty_vouchers_users_user_id");
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.Order", b =>

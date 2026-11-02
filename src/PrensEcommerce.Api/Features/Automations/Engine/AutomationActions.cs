@@ -15,6 +15,8 @@ public sealed record AutomationContext(AutomationRule Rule, User User, JsonObjec
 
     public int? Units => Payload["units"]?.GetValue<int?>();
 
+    public string? OrderNumber => Payload["orderNumber"]?.GetValue<string>();
+
     /// <summary>Configuración de la regla (columna jsonb) ya parseada; vacía si no es JSON válido.</summary>
     public JsonObject Configuration { get; } = ParseConfiguration(Rule.Configuration);
 
@@ -85,7 +87,7 @@ internal sealed class SendEmailAction(IEmailSender email) : IAutomationActionHan
             ["nombre"] = context.User.Name,
             ["email"] = context.User.Email,
             ["tienda"] = context.StoreName,
-            ["pedido"] = TemplateRenderer.ShortReference(context.ReferenceId),
+            ["pedido"] = context.OrderNumber ?? TemplateRenderer.ShortReference(context.ReferenceId),
             ["total"] = TemplateRenderer.FormatMoney(context.Amount),
             ["unidades"] = context.Units?.ToString(CultureInfo.InvariantCulture),
         };

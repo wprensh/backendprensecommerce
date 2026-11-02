@@ -46,6 +46,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
 
+    public DbSet<LoyaltyVoucher> LoyaltyVouchers => Set<LoyaltyVoucher>();
+
     public DbSet<CustomerNote> CustomerNotes => Set<CustomerNote>();
 
     public DbSet<AutomationRule> AutomationRules => Set<AutomationRule>();

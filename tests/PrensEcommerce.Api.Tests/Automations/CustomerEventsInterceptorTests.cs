@@ -36,6 +36,7 @@ public sealed class CustomerEventsInterceptorTests : IDisposable
     {
         TenantId = Tenant.Id,
         UserId = userId,
+        OrderNumber = "PE-000001",
         Status = status,
         Total = 50m,
         ShippingAddress = new ShippingAddress("Ana", "C/ 1", "Madrid", "600"),
@@ -77,5 +78,16 @@ public sealed class CustomerEventsInterceptorTests : IDisposable
         order.Status = OrderStatus.Shipped;
 
         Assert.Empty(CapturedEvents());
+    }
+
+    [Fact]
+    public void Order_created_already_paid_produces_placed_and_paid_events()
+    {
+        var order = NewOrder(Guid.NewGuid(), OrderStatus.Paid);
+        _db.Orders.Add(order);
+
+        var types = CapturedEvents().Select(e => e.Type).Order().ToList();
+
+        Assert.Equal([AutomationTrigger.OrderPlaced, AutomationTrigger.OrderPaid], types);
     }
 }
