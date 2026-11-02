@@ -10,6 +10,8 @@ internal sealed class LoyaltyAccountConfiguration : IEntityTypeConfiguration<Loy
     {
         builder.ToTable("loyalty_accounts", Schemas.Crm);
         builder.Property(a => a.Tier).HasConversion<string>().HasMaxLength(20);
+        // Concurrencia optimista: dos canjes simultáneos no pueden gastar el mismo saldo.
+        builder.Property(a => a.PointsBalance).IsConcurrencyToken();
         builder.HasOne<User>().WithOne().HasForeignKey<LoyaltyAccount>(a => a.UserId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(a => new { a.TenantId, a.UserId }).IsUnique();
         builder.HasMany(a => a.Transactions).WithOne().HasForeignKey(t => t.AccountId).OnDelete(DeleteBehavior.Cascade);
@@ -24,6 +26,21 @@ internal sealed class LoyaltyTransactionConfiguration : IEntityTypeConfiguration
         builder.Property(t => t.Type).HasConversion<string>().HasMaxLength(20);
         builder.Property(t => t.Reason).HasMaxLength(200);
         builder.HasOne<Order>().WithMany().HasForeignKey(t => t.OrderId).OnDelete(DeleteBehavior.SetNull);
+        builder.HasIndex(t => new { t.AccountId, t.CreatedAt });
+    }
+}
+
+internal sealed class LoyaltyVoucherConfiguration : IEntityTypeConfiguration<LoyaltyVoucher>
+{
+    public void Configure(EntityTypeBuilder<LoyaltyVoucher> builder)
+    {
+        builder.ToTable("loyalty_vouchers", Schemas.Crm);
+        builder.Property(v => v.Code).HasMaxLength(20);
+        builder.Property(v => v.Amount).HasPrecision(12, 2);
+        builder.HasOne<User>().WithMany().HasForeignKey(v => v.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<Order>().WithMany().HasForeignKey(v => v.OrderId).OnDelete(DeleteBehavior.SetNull);
+        builder.HasIndex(v => new { v.TenantId, v.Code }).IsUnique();
+        builder.HasIndex(v => new { v.TenantId, v.UserId });
     }
 }
 

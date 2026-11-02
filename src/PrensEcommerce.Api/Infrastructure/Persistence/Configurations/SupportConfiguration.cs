@@ -11,7 +11,12 @@ internal sealed class SupportTicketConfiguration : IEntityTypeConfiguration<Supp
         builder.ToTable("tickets", Schemas.Support, t =>
             t.HasCheckConstraint("ck_tickets_satisfaction", "satisfaction_score IS NULL OR satisfaction_score BETWEEN 1 AND 5"));
 
+        builder.Ignore(t => t.Code);
+        builder.Ignore(t => t.IsClosed);
+        builder.Ignore(t => t.CanBeRated);
         builder.Property(t => t.Subject).HasMaxLength(200);
+        builder.Property(t => t.Category).HasConversion<string>().HasMaxLength(20);
+        builder.Property(t => t.SatisfactionComment).HasMaxLength(1000);
         builder.Property(t => t.ContactEmail).HasMaxLength(320);
         builder.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(t => t.Priority).HasConversion<string>().HasMaxLength(20);
@@ -23,6 +28,8 @@ internal sealed class SupportTicketConfiguration : IEntityTypeConfiguration<Supp
         builder.HasMany(t => t.Messages).WithOne().HasForeignKey(m => m.TicketId).OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(t => new { t.TenantId, t.Status });
+        builder.HasIndex(t => new { t.TenantId, t.Number }).IsUnique();
+        builder.HasIndex(t => new { t.TenantId, t.CustomerId });
     }
 }
 

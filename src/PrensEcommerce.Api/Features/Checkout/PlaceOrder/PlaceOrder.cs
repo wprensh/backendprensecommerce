@@ -7,6 +7,7 @@ using PrensEcommerce.Api.Common.Security;
 using PrensEcommerce.Api.Common.Validation;
 using PrensEcommerce.Api.Domain;
 using PrensEcommerce.Api.Features.Cart;
+using PrensEcommerce.Api.Features.Loyalty;
 using PrensEcommerce.Api.Infrastructure.Persistence;
 
 namespace PrensEcommerce.Api.Features.Checkout.PlaceOrder;
@@ -14,9 +15,10 @@ namespace PrensEcommerce.Api.Features.Checkout.PlaceOrder;
 /// <summary>POST /api/checkout — convierte el carrito en un pedido y descuenta stock.</summary>
 public static class PlaceOrder
 {
-    public sealed record Command(ShippingAddress ShippingAddress, PaymentMethod PaymentMethod);
+    /// <param name="VoucherCode">Cupón obtenido al canjear puntos de fidelización (opcional).</param>
+    public sealed record Command(ShippingAddress ShippingAddress, PaymentMethod PaymentMethod, string? VoucherCode = null);
 
-    public sealed record Response(Guid OrderId, decimal Total);
+    public sealed record Response(Guid OrderId, decimal Total, decimal LoyaltyDiscount, int PointsEarned);
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -28,6 +30,7 @@ public static class PlaceOrder
             RuleFor(c => c.ShippingAddress.City).NotEmpty().MaximumLength(100);
             RuleFor(c => c.ShippingAddress.Phone).NotEmpty().MaximumLength(30);
             RuleFor(c => c.PaymentMethod).IsInEnum();
+            RuleFor(c => c.VoucherCode).MaximumLength(20);
         }
     }
 
@@ -43,7 +46,7 @@ public static class PlaceOrder
                 .WithName("PlaceOrder");
     }
 
-    public sealed class Handler(CartStore carts, AppDbContext db) : IHandler
+    public sealed class Handler(CartStore carts, AppDbContext db, LoyaltyService loyalty) : IHandler
     {
         public async Task<Result<Response>> HandleAsync(Guid userId, Command command, CancellationToken ct)
         {
@@ -85,15 +88,29 @@ public static class PlaceOrder
                 });
             }
 
-            order.Total = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+            var subtotal = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+            if (!string.IsNullOrWhiteSpace(command.VoucherCode))
+            {
+                var discount = await loyalty.ApplyVoucherAsync(userId, command.VoucherCode, subtotal, ct);
+                if (!discount.IsSuccess)
+                {
+                    return discount.Error!;
+                }
+
+                order.LoyaltyDiscount = discount.Value;
+                loyalty.LinkVoucherToOrder(command.VoucherCode, order);
+            }
+
+            order.Total = subtotal - order.LoyaltyDiscount;
 
             // El cobro queda pendiente; la pasarela de pago lo confirmará más adelante.
             order.Payments.Add(new Payment { Method = command.PaymentMethod, Amount = order.Total });
             db.Orders.Add(order);
+            var pointsEarned = await loyalty.AwardForOrderAsync(order, ct);
             await db.SaveChangesAsync(ct);
             await carts.ClearAsync(userId, ct);
 
-            return new Response(order.Id, order.Total);
+            return new Response(order.Id, order.Total, order.LoyaltyDiscount, pointsEarned);
         }
     }
 }
