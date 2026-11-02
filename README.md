@@ -35,7 +35,12 @@ backendprensecommerce/
 │   │   │   ├── AddCartItem/AddCartItem.cs
 │   │   │   └── RemoveCartItem/RemoveCartItem.cs
 │   │   ├── Checkout/
-│   │   │   └── PlaceOrder/PlaceOrder.cs
+│   │   │   ├── CheckoutOptions.cs   # moneda, envío, envío gratis desde…
+│   │   │   ├── GetCheckoutConfig/GetCheckoutConfig.cs
+│   │   │   └── PlaceOrder/PlaceOrder.cs   # pedido + cobro + stock
+│   │   ├── Orders/
+│   │   │   ├── GetOrderById/GetOrderById.cs
+│   │   │   └── GetMyOrders/GetMyOrders.cs
 │   │   └── Tenants/
 │   │       └── GetCurrentTenant/GetCurrentTenant.cs
 │   ├── Domain/                      # entidades compartidas por varios slices (un archivo por módulo)
@@ -43,6 +48,7 @@ backendprensecommerce/
 │   │   ├── Tenant.cs  Identity.cs  Catalog.cs  Sales.cs  Support.cs  Crm.cs
 │   ├── Infrastructure/
 │   │   ├── MultiTenancy/            # ITenantProvider, resolvers, middleware, store
+│   │   ├── Payments/                # IPaymentGateway + SimulatedPaymentGateway
 │   │   └── Persistence/             # AppDbContext, configuraciones, migraciones, seeder
 │   └── Common/                      # piezas transversales sin lógica de negocio
 │       ├── Abstractions/            # IEndpoint, IHandler
@@ -171,3 +177,29 @@ Usa variables de entorno (no subas secretos al repositorio):
 | `Jwt__SigningKey` | clave aleatoria de 32+ caracteres |
 | `MultiTenancy__RootDomains__0` | `prens.shop` |
 | `Cors__AllowedOrigins__0` | `https://*.prens.shop` |
+
+## Checkout y pagos
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/checkout/config` | Moneda, coste de envío, pasarela activa y métodos de pago |
+| `POST` | `/api/checkout` | Crea el pedido, cobra y descuenta stock (`201`, `402` si se rechaza el pago, `409` sin stock) |
+| `GET` | `/api/orders` | Pedidos del usuario |
+| `GET` | `/api/orders/{id}` | Detalle de un pedido (confirmación) |
+
+`POST /api/checkout` acepta `items` en el cuerpo (carrito del navegador) o, si se omite, usa el carrito de Redis.
+Los precios siempre se recalculan en servidor.
+
+**Pasarela enchufable.** `IPaymentGateway` (`Infrastructure/Payments`) se elige con `Payments:Provider`.
+Hoy existe `simulated`, que no mueve dinero y responde según el token que genera el frontend:
+
+| Token | Resultado |
+|---|---|
+| `tok_sim_declined` | Rechazada (402) |
+| `tok_sim_insufficient_funds` | Fondos insuficientes (402) |
+| otro `tok_sim_*` | Aprobada → pedido `paid` |
+| transferencia / contra entrega | Pago `pending` con instrucciones |
+
+Para un proveedor real (Mercado Pago, Stripe, Izipay…) se añade otra implementación de `IPaymentGateway`
+y su caso en `PaymentsExtensions`; la tarjeta se tokeniza en el navegador con el SDK del proveedor, así que
+el número nunca llega a la API.
