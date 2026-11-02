@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using PrensEcommerce.Api.Common.Abstractions;
 using PrensEcommerce.Api.Common.Errors;
 using PrensEcommerce.Api.Common.Security;
@@ -8,17 +9,46 @@ using PrensEcommerce.Api.Common.Validation;
 using PrensEcommerce.Api.Domain;
 using PrensEcommerce.Api.Features.Cart;
 using PrensEcommerce.Api.Features.Loyalty;
+using PrensEcommerce.Api.Infrastructure.Payments;
 using PrensEcommerce.Api.Infrastructure.Persistence;
 
 namespace PrensEcommerce.Api.Features.Checkout.PlaceOrder;
 
-/// <summary>POST /api/checkout — convierte el carrito en un pedido y descuenta stock.</summary>
+/// <summary>
+/// POST /api/checkout — convierte el carrito en un pedido, cobra con la pasarela activa y descuenta stock.
+/// <list type="number">
+/// <item>Valida productos y stock (los precios siempre se recalculan en servidor).</item>
+/// <item>Cobra con <see cref="IPaymentGateway"/>. Si la tarjeta se rechaza responde 402 y no se guarda nada.</item>
+/// <item>Guarda pedido + pago y descuenta stock en una transacción; si falla, reembolsa el cobro.</item>
+/// </list>
+/// </summary>
 public static class PlaceOrder
 {
-    /// <param name="VoucherCode">Cupón obtenido al canjear puntos de fidelización (opcional).</param>
-    public sealed record Command(ShippingAddress ShippingAddress, PaymentMethod PaymentMethod, string? VoucherCode = null);
+    public sealed record Line(Guid ProductId, int Quantity);
 
-    public sealed record Response(Guid OrderId, decimal Total, decimal LoyaltyDiscount, int PointsEarned);
+    /// <param name="Items">Líneas a pagar. Si se omite, se usa el carrito del usuario guardado en Redis.</param>
+    /// <param name="PaymentToken">Token de tarjeta generado por el SDK del proveedor en el navegador.</param>
+    /// <param name="VoucherCode">Cupón obtenido al canjear Prens Puntos (opcional).</param>
+    public sealed record Command(
+        ShippingAddress ShippingAddress,
+        PaymentMethod PaymentMethod,
+        string? PaymentToken = null,
+        IReadOnlyList<Line>? Items = null,
+        string? VoucherCode = null);
+
+    public sealed record PaymentSummary(PaymentStatus Status, string Provider, string? Reference, string? Instructions);
+
+    public sealed record Response(
+        Guid OrderId,
+        string OrderNumber,
+        OrderStatus Status,
+        decimal Subtotal,
+        decimal ShippingCost,
+        decimal LoyaltyDiscount,
+        decimal Total,
+        string Currency,
+        PaymentSummary Payment,
+        int PointsEarned);
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -30,7 +60,17 @@ public static class PlaceOrder
             RuleFor(c => c.ShippingAddress.City).NotEmpty().MaximumLength(100);
             RuleFor(c => c.ShippingAddress.Phone).NotEmpty().MaximumLength(30);
             RuleFor(c => c.PaymentMethod).IsInEnum();
+            RuleFor(c => c.PaymentToken)
+                .NotEmpty().WithMessage("El pago con tarjeta requiere un token.")
+                .MaximumLength(500)
+                .When(c => c.PaymentMethod == PaymentMethod.Card);
             RuleFor(c => c.VoucherCode).MaximumLength(20);
+            RuleFor(c => c.Items).Must(items => items!.Count <= 100).When(c => c.Items is not null);
+            RuleForEach(c => c.Items).ChildRules(line =>
+            {
+                line.RuleFor(l => l.ProductId).NotEmpty();
+                line.RuleFor(l => l.Quantity).InclusiveBetween(1, 99);
+            });
         }
     }
 
@@ -43,14 +83,28 @@ public static class PlaceOrder
                 .WithValidation<Command>()
                 .RequireAuthorization()
                 .WithTags("Checkout")
-                .WithName("PlaceOrder");
+                .WithName("PlaceOrder")
+                .Produces<Response>(StatusCodes.Status201Created)
+                .ProducesProblem(StatusCodes.Status402PaymentRequired)
+                .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
-    public sealed class Handler(CartStore carts, AppDbContext db, LoyaltyService loyalty) : IHandler
+    public sealed class Handler(
+        CartStore carts,
+        AppDbContext db,
+        IPaymentGateway gateway,
+        LoyaltyService loyalty,
+        IOptions<CheckoutOptions> options,
+        TimeProvider clock,
+        ILogger<Handler> logger) : IHandler
     {
         public async Task<Result<Response>> HandleAsync(Guid userId, Command command, CancellationToken ct)
         {
-            var lines = await carts.GetAsync(userId, ct);
+            var usesServerCart = command.Items is null;
+            var lines = usesServerCart
+                ? (await carts.GetAsync(userId, ct)).Select(l => new Line(l.ProductId, l.Quantity)).ToList()
+                : MergeDuplicates(command.Items!);
+
             if (lines.Count == 0)
             {
                 return Error.Validation("Checkout.EmptyCart", "El carrito está vacío.");
@@ -59,11 +113,14 @@ public static class PlaceOrder
             var ids = lines.Select(l => l.ProductId).ToList();
             var products = await db.Products.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
 
+            var settings = options.Value;
             var order = new Order
             {
+                OrderNumber = OrderNumber.New(clock.GetUtcNow()),
                 UserId = userId,
                 PaymentMethod = command.PaymentMethod,
                 ShippingAddress = command.ShippingAddress,
+                Currency = settings.Currency,
             };
 
             foreach (var line in lines)
@@ -78,7 +135,6 @@ public static class PlaceOrder
                     return Error.Conflict("Checkout.InsufficientStock", $"Stock insuficiente para '{product.Name}'.");
                 }
 
-                product.Stock -= line.Quantity;
                 order.Items.Add(new OrderItem
                 {
                     ProductId = product.Id,
@@ -88,10 +144,14 @@ public static class PlaceOrder
                 });
             }
 
-            var subtotal = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+            order.Subtotal = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+            order.ShippingCost = settings.ShippingFor(order.Subtotal);
+
+            // Cupón de Prens Puntos: descuenta sobre el subtotal (no sobre el envío). Si el cobro falla
+            // no se guarda nada, así que el cupón sigue disponible.
             if (!string.IsNullOrWhiteSpace(command.VoucherCode))
             {
-                var discount = await loyalty.ApplyVoucherAsync(userId, command.VoucherCode, subtotal, ct);
+                var discount = await loyalty.ApplyVoucherAsync(userId, command.VoucherCode, order.Subtotal, ct);
                 if (!discount.IsSuccess)
                 {
                     return discount.Error!;
@@ -101,16 +161,68 @@ public static class PlaceOrder
                 loyalty.LinkVoucherToOrder(command.VoucherCode, order);
             }
 
-            order.Total = subtotal - order.LoyaltyDiscount;
+            order.Total = order.Subtotal - order.LoyaltyDiscount + order.ShippingCost;
 
-            // El cobro queda pendiente; la pasarela de pago lo confirmará más adelante.
-            order.Payments.Add(new Payment { Method = command.PaymentMethod, Amount = order.Total });
+            var charge = await gateway.ChargeAsync(
+                new PaymentRequest(order.Id, order.OrderNumber, order.Total, order.Currency, command.PaymentMethod, command.PaymentToken),
+                ct);
+
+            if (charge.IsFailure)
+            {
+                return Error.PaymentFailed("Payment.Declined", charge.FailureReason ?? "No se pudo completar el pago.");
+            }
+
+            order.Status = charge.Status == PaymentStatus.Captured ? OrderStatus.Paid : OrderStatus.Pending;
+            order.Payments.Add(new Payment
+            {
+                Provider = gateway.Name,
+                Method = command.PaymentMethod,
+                Status = charge.Status,
+                Amount = order.Total,
+                Currency = order.Currency,
+                ProviderReference = charge.ProviderReference,
+                ProcessedAt = charge.Status == PaymentStatus.Captured ? clock.GetUtcNow() : null,
+            });
+
+            foreach (var item in order.Items)
+            {
+                products[item.ProductId].Stock -= item.Quantity;
+            }
+
             db.Orders.Add(order);
             var pointsEarned = await loyalty.AwardForOrderAsync(order, ct);
-            await db.SaveChangesAsync(ct);
-            await carts.ClearAsync(userId, ct);
 
-            return new Response(order.Id, order.Total, order.LoyaltyDiscount, pointsEarned);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (Exception ex) when (charge.Status == PaymentStatus.Captured && charge.ProviderReference is not null)
+            {
+                // El dinero ya se cobró pero el pedido no se guardó: devolverlo antes de propagar el error.
+                logger.LogError(ex, "No se pudo guardar el pedido {OrderNumber}; se reembolsa el cobro.", order.OrderNumber);
+                await gateway.RefundAsync(charge.ProviderReference, order.Total, order.Currency, CancellationToken.None);
+                throw;
+            }
+
+            if (usesServerCart)
+            {
+                await carts.ClearAsync(userId, ct);
+            }
+
+            return new Response(
+                order.Id,
+                order.OrderNumber,
+                order.Status,
+                order.Subtotal,
+                order.ShippingCost,
+                order.LoyaltyDiscount,
+                order.Total,
+                order.Currency,
+                new PaymentSummary(charge.Status, gateway.Name, charge.ProviderReference, charge.Instructions),
+                pointsEarned);
         }
+
+        private static List<Line> MergeDuplicates(IReadOnlyList<Line> items) =>
+            items.GroupBy(l => l.ProductId).Select(g => new Line(g.Key, g.Sum(l => l.Quantity))).ToList();
     }
 }

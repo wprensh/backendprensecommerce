@@ -41,7 +41,8 @@ public sealed class LoyaltyService(AppDbContext db, IOptions<LoyaltyOptions> opt
     public async Task<int> AwardForOrderAsync(Order order, CancellationToken ct)
     {
         var account = await GetOrCreateAccountAsync(order.UserId, ct);
-        var points = PointsFor(order.Total, account.LifetimePoints);
+        // Los puntos se calculan sobre lo pagado por productos (sin envío).
+        var points = PointsFor(order.Subtotal - order.LoyaltyDiscount, account.LifetimePoints);
         if (points > 0)
         {
             AddTransaction(account.Post(LoyaltyTransactionType.Earn, points, "Compra online", order.Id));
