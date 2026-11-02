@@ -106,7 +106,16 @@ public sealed class AutomationRun : TenantEntity
 {
     public Guid RuleId { get; set; }
 
+    /// <summary>Cliente afectado (destinatario del correo, al que se etiqueta…).</summary>
+    public Guid? UserId { get; set; }
+
     public AutomationRunStatus Status { get; set; } = AutomationRunStatus.Pending;
+
+    /// <summary>Cuándo debe ejecutarse (momento del evento + retraso de la regla).</summary>
+    public DateTimeOffset ScheduledAt { get; set; }
+
+    /// <summary>Clave de idempotencia: la misma regla nunca se ejecuta dos veces por el mismo hecho.</summary>
+    public string? DedupKey { get; set; }
 
     /// <summary>Datos del evento que disparó la regla. Columna jsonb.</summary>
     public string Payload { get; set; } = "{}";

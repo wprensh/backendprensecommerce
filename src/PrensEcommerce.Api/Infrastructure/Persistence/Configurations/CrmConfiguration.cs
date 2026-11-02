@@ -60,6 +60,46 @@ internal sealed class AutomationRunConfiguration : IEntityTypeConfiguration<Auto
         builder.Property(r => r.Payload).HasColumnType("jsonb");
         builder.Property(r => r.Error).HasMaxLength(2000);
         builder.HasOne<AutomationRule>().WithMany().HasForeignKey(r => r.RuleId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasIndex(r => new { r.TenantId, r.Status });
+        builder.Property(r => r.DedupKey).HasMaxLength(200);
+        builder.HasOne<User>().WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(r => new { r.TenantId, r.Status, r.ScheduledAt });
+        builder.HasIndex(r => new { r.TenantId, r.DedupKey }).IsUnique();
+        builder.HasIndex(r => new { r.TenantId, r.UserId });
+    }
+}
+
+internal sealed class CustomerEventConfiguration : IEntityTypeConfiguration<CustomerEvent>
+{
+    public void Configure(EntityTypeBuilder<CustomerEvent> builder)
+    {
+        builder.ToTable("customer_events", Schemas.Crm);
+        builder.Property(e => e.Type).HasConversion<string>().HasMaxLength(30);
+        builder.Property(e => e.Amount).HasPrecision(12, 2);
+        builder.HasOne<User>().WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(e => new { e.TenantId, e.UserId, e.OccurredAt });
+        builder.HasIndex(e => new { e.TenantId, e.ProcessedAt });
+    }
+}
+
+internal sealed class CartActivityConfiguration : IEntityTypeConfiguration<CartActivity>
+{
+    public void Configure(EntityTypeBuilder<CartActivity> builder)
+    {
+        builder.ToTable("cart_activities", Schemas.Crm);
+        builder.HasOne<User>().WithOne().HasForeignKey<CartActivity>(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(c => new { c.TenantId, c.UserId }).IsUnique();
+        builder.HasIndex(c => new { c.TenantId, c.ItemCount, c.LastActivityAt });
+    }
+}
+
+internal sealed class CustomerSegmentConfiguration : IEntityTypeConfiguration<CustomerSegment>
+{
+    public void Configure(EntityTypeBuilder<CustomerSegment> builder)
+    {
+        builder.ToTable("customer_segments", Schemas.Crm);
+        builder.Property(s => s.Name).HasMaxLength(120);
+        builder.Property(s => s.Description).HasMaxLength(500);
+        builder.HasIndex(s => new { s.TenantId, s.Name }).IsUnique();
+        builder.OwnsOne(s => s.Rules, r => r.ToJson("rules"));
     }
 }

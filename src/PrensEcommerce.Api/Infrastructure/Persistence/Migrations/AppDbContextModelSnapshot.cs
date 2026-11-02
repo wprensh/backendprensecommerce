@@ -97,6 +97,11 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("DedupKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("dedup_key");
+
                     b.Property<string>("Error")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
@@ -115,6 +120,10 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("rule_id");
 
+                    b.Property<DateTimeOffset>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scheduled_at");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -129,6 +138,10 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
                     b.HasKey("Id")
                         .HasName("pk_automation_runs");
 
@@ -138,10 +151,71 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId")
                         .HasDatabaseName("ix_automation_runs_tenant_id");
 
-                    b.HasIndex("TenantId", "Status")
-                        .HasDatabaseName("ix_automation_runs_tenant_id_status");
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_automation_runs_user_id");
+
+                    b.HasIndex("TenantId", "DedupKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_automation_runs_tenant_id_dedup_key");
+
+                    b.HasIndex("TenantId", "UserId")
+                        .HasDatabaseName("ix_automation_runs_tenant_id_user_id");
+
+                    b.HasIndex("TenantId", "Status", "ScheduledAt")
+                        .HasDatabaseName("ix_automation_runs_tenant_id_status_scheduled_at");
 
                     b.ToTable("automation_runs", "crm");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.CartActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("ItemCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("item_count");
+
+                    b.Property<DateTimeOffset>("LastActivityAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_activity_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cart_activities");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_cart_activities_tenant_id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_cart_activities_user_id");
+
+                    b.HasIndex("TenantId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_cart_activities_tenant_id_user_id");
+
+                    b.HasIndex("TenantId", "ItemCount", "LastActivityAt")
+                        .HasDatabaseName("ix_cart_activities_tenant_id_item_count_last_activity_at");
+
+                    b.ToTable("cart_activities", "crm");
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.Category", b =>
@@ -213,6 +287,70 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("categories", "catalog");
                 });
 
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.CustomerEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal?>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.Property<Guid?>("ReferenceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reference_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_events");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_customer_events_tenant_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_customer_events_user_id");
+
+                    b.HasIndex("TenantId", "ProcessedAt")
+                        .HasDatabaseName("ix_customer_events_tenant_id_processed_at");
+
+                    b.HasIndex("TenantId", "UserId", "OccurredAt")
+                        .HasDatabaseName("ix_customer_events_tenant_id_user_id_occurred_at");
+
+                    b.ToTable("customer_events", "crm");
+                });
+
             modelBuilder.Entity("PrensEcommerce.Api.Domain.CustomerNote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -259,6 +397,50 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_customer_notes_tenant_id");
 
                     b.ToTable("customer_notes", "crm");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.CustomerSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_segments");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_customer_segments_tenant_id");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_segments_tenant_id_name");
+
+                    b.ToTable("customer_segments", "crm");
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.LoyaltyAccount", b =>
@@ -1054,6 +1236,29 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_automation_runs_tenants_tenant_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_automation_runs_users_user_id");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.CartActivity", b =>
+                {
+                    b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_cart_activities_tenants_tenant_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.User", null)
+                        .WithOne()
+                        .HasForeignKey("PrensEcommerce.Api.Domain.CartActivity", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_cart_activities_users_user_id");
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.Category", b =>
@@ -1070,6 +1275,23 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_categories_tenants_tenant_id");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.CustomerEvent", b =>
+                {
+                    b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_events_tenants_tenant_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_events_users_user_id");
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.CustomerNote", b =>
@@ -1093,6 +1315,64 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_customer_notes_tenants_tenant_id");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.CustomerSegment", b =>
+                {
+                    b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_segments_tenants_tenant_id");
+
+                    b.OwnsOne("PrensEcommerce.Api.Domain.SegmentRules", "Rules", b1 =>
+                        {
+                            b1.Property<Guid>("CustomerSegmentId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<bool?>("AcceptsMarketing")
+                                .HasColumnType("boolean");
+
+                            b1.Property<bool?>("HasCartItems")
+                                .HasColumnType("boolean");
+
+                            b1.Property<int?>("LastOrderOlderThanDays")
+                                .HasColumnType("integer");
+
+                            b1.Property<int?>("LastOrderWithinDays")
+                                .HasColumnType("integer");
+
+                            b1.Property<int?>("MaxOrders")
+                                .HasColumnType("integer");
+
+                            b1.Property<int?>("MinOrders")
+                                .HasColumnType("integer");
+
+                            b1.Property<decimal?>("MinTotalSpent")
+                                .HasColumnType("numeric");
+
+                            b1.Property<int?>("RegisteredWithinDays")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("Tag")
+                                .HasColumnType("text");
+
+                            b1.HasKey("CustomerSegmentId");
+
+                            b1.ToTable("customer_segments", "crm");
+
+                            b1
+                                .ToJson("rules")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CustomerSegmentId")
+                                .HasConstraintName("fk_customer_segments_customer_segments_id");
+                        });
+
+                    b.Navigation("Rules")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.LoyaltyAccount", b =>
