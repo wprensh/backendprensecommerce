@@ -49,7 +49,7 @@ public sealed class Order : TenantEntity
 
     public decimal Total { get; set; }
 
-    public string Currency { get; set; } = "EUR";
+    public string Currency { get; set; } = "COP";
 
     public List<OrderItem> Items { get; init; } = [];
 
@@ -80,7 +80,7 @@ public sealed class Payment : TenantEntity
 
     public decimal Amount { get; set; }
 
-    public string Currency { get; set; } = "EUR";
+    public string Currency { get; set; } = "COP";
 
     /// <summary>Pasarela usada (ej. "stripe", "redsys", "manual").</summary>
     public string Provider { get; set; } = "manual";

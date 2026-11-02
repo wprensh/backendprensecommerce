@@ -50,5 +50,6 @@ public sealed class Product : TenantEntity
 
     public bool IsActive { get; set; } = true;
 
-    public decimal FinalPrice => Math.Round(Price * (100 - DiscountPercent) / 100m, 2);
+    /// <summary>Precio con descuento, redondeado a pesos enteros (COP no usa decimales).</summary>
+    public decimal FinalPrice => Math.Round(Price * (100 - DiscountPercent) / 100m, 0, MidpointRounding.AwayFromZero);
 }

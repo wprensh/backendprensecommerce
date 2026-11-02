@@ -34,7 +34,7 @@ public sealed class LoyaltyService(AppDbContext db, IOptions<LoyaltyOptions> opt
     public int PointsFor(decimal amount, int lifetimePoints)
     {
         var tier = Options.RuleFor(lifetimePoints);
-        return (int)Math.Floor(Math.Max(amount, 0) * Options.PointsPerEuro * tier.Multiplier);
+        return (int)Math.Floor(Math.Max(amount, 0) / Options.PesosPerPoint * tier.Multiplier);
     }
 
     /// <summary>Suma los puntos de un pedido a la cuenta del cliente. Devuelve los puntos ganados.</summary>
@@ -81,7 +81,7 @@ public sealed class LoyaltyService(AppDbContext db, IOptions<LoyaltyOptions> opt
             UserId = userId,
             Code = NewCode(),
             Points = points,
-            Amount = Math.Round(points * Options.PointValue, 2),
+            Amount = Math.Round(points * Options.PointValue, 0, MidpointRounding.AwayFromZero),
             ExpiresAt = clock.GetUtcNow().AddDays(Options.VoucherValidityDays),
         };
 
