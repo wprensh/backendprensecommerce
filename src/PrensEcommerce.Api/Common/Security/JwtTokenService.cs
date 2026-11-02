@@ -9,23 +9,24 @@ namespace PrensEcommerce.Api.Common.Security;
 
 public interface ITokenService
 {
-    (string Token, DateTimeOffset ExpiresAt) CreateToken(User user);
+    (string Token, DateTimeOffset ExpiresAt) CreateToken(User user, IEnumerable<string> roles);
 }
 
 internal sealed class JwtTokenService(IOptions<JwtOptions> options, TimeProvider clock) : ITokenService
 {
-    public (string Token, DateTimeOffset ExpiresAt) CreateToken(User user)
+    public (string Token, DateTimeOffset ExpiresAt) CreateToken(User user, IEnumerable<string> roles)
     {
         var jwt = options.Value;
         var expiresAt = clock.GetUtcNow().AddMinutes(jwt.ExpirationMinutes);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.Name, user.Name),
             new Claim(AppClaims.TenantId, user.TenantId.ToString()),
         };
+        claims.AddRange(roles.Select(role => new Claim(AppClaims.Role, role)));
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)), SecurityAlgorithms.HmacSha256);

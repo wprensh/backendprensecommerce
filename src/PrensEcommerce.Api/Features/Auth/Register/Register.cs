@@ -49,10 +49,17 @@ public static class Register
             var user = new User { Name = command.Name.Trim(), Email = email };
             user.PasswordHash = hasher.HashPassword(user, command.Password);
 
+            // Todo registro público es cliente; los roles de personal se asignan desde la administración.
+            var customerRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == SystemRoles.Customer, ct);
+            if (customerRole is not null)
+            {
+                user.Roles.Add(new UserRole { RoleId = customerRole.Id });
+            }
+
             db.Users.Add(user);
             await db.SaveChangesAsync(ct);
 
-            return responses.Create(user);
+            return await responses.CreateAsync(user, ct);
         }
     }
 }

@@ -8,6 +8,7 @@ internal sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 {
     public void Configure(EntityTypeBuilder<Tenant> builder)
     {
+        builder.ToTable("tenants", Schemas.Core);
         builder.Property(t => t.Slug).HasMaxLength(63);
         builder.Property(t => t.Name).HasMaxLength(200);
         builder.HasIndex(t => t.Slug).IsUnique();

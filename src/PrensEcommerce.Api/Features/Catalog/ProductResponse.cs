@@ -11,5 +11,5 @@ public sealed record ProductResponse(
     /// <summary>Proyección traducible a SQL, para no materializar la entidad completa.</summary>
     public static readonly Expression<Func<Product, ProductResponse>> Projection = p =>
         new ProductResponse(p.Id, p.Name, p.Description, p.Price, p.DiscountPercent,
-            p.Category, p.ImageUrl, p.Rating, p.ReviewCount, p.Stock);
+            p.Category!.Slug, p.ImageUrl, p.Rating, p.ReviewCount, p.Stock);
 }

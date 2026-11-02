@@ -6,7 +6,7 @@ using PrensEcommerce.Api.Infrastructure.MultiTenancy;
 namespace PrensEcommerce.Api.Infrastructure.Persistence;
 
 /// <summary>
-/// DbContext único (una base de datos, un esquema) con discriminador <c>tenant_id</c>.
+/// DbContext único (una base de datos, esquemas por módulo) con discriminador <c>tenant_id</c>.
 /// El aislamiento se garantiza en dos puntos:
 /// <list type="number">
 /// <item>Filtro global de consultas sobre toda entidad <see cref="ITenantEntity"/>.</item>
@@ -16,15 +16,41 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence;
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenantProvider tenantProvider)
     : DbContext(options)
 {
-    public const string Schema = "ecommerce";
-
+    // core
     public DbSet<Tenant> Tenants => Set<Tenant>();
+
+    // identity
+    public DbSet<User> Users => Set<User>();
+
+    public DbSet<Role> Roles => Set<Role>();
+
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+
+    // catalog
+    public DbSet<Category> Categories => Set<Category>();
 
     public DbSet<Product> Products => Set<Product>();
 
-    public DbSet<User> Users => Set<User>();
-
+    // sales
     public DbSet<Order> Orders => Set<Order>();
+
+    public DbSet<Payment> Payments => Set<Payment>();
+
+    // support
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+
+    public DbSet<TicketMessage> TicketMessages => Set<TicketMessage>();
+
+    // crm
+    public DbSet<LoyaltyAccount> LoyaltyAccounts => Set<LoyaltyAccount>();
+
+    public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
+
+    public DbSet<CustomerNote> CustomerNotes => Set<CustomerNote>();
+
+    public DbSet<AutomationRule> AutomationRules => Set<AutomationRule>();
+
+    public DbSet<AutomationRun> AutomationRuns => Set<AutomationRun>();
 
     /// <summary>
     /// Leído por el filtro global en cada consulta. EF Core lo parametriza por instancia de
@@ -35,7 +61,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.HasDefaultSchema(Schemas.Core);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes()

@@ -24,7 +24,7 @@ public static class GetProductById
         public async Task<Result<ProductResponse>> HandleAsync(Guid id, CancellationToken ct)
         {
             var product = await db.Products.AsNoTracking()
-                .Where(p => p.Id == id)
+                .Where(p => p.Id == id && p.IsActive)
                 .Select(ProductResponse.Projection)
                 .FirstOrDefaultAsync(ct);
 

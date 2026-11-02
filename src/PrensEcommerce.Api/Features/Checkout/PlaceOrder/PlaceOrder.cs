@@ -86,6 +86,9 @@ public static class PlaceOrder
             }
 
             order.Total = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+
+            // El cobro queda pendiente; la pasarela de pago lo confirmará más adelante.
+            order.Payments.Add(new Payment { Method = command.PaymentMethod, Amount = order.Total });
             db.Orders.Add(order);
             await db.SaveChangesAsync(ct);
             await carts.ClearAsync(userId, ct);

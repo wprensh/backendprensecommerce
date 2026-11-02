@@ -31,7 +31,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseNpgsql(postgresConnection, npgsql =>
         {
-            npgsql.MigrationsHistoryTable("__ef_migrations_history", AppDbContext.Schema);
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", Schemas.Core);
             npgsql.EnableRetryOnFailure(maxRetryCount: 3);
         })
         .UseSnakeCaseNamingConvention();
@@ -80,6 +80,7 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             ValidAudience = jwt.Value.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Value.SigningKey)),
             NameClaimType = "name",
+            RoleClaimType = AppClaims.Role,
         };
     });
 builder.Services.AddAuthorization();

@@ -15,6 +15,7 @@ backendprensecommerce/
 ├── PrensEcommerce.sln
 ├── Directory.Build.props            # net9.0, nullable, analizadores, warnings = errores
 ├── docker-compose.yml               # PostgreSQL 17 + Redis 7 para desarrollo
+├── database/schema.sql              # script SQL idempotente generado desde las migraciones
 ├── .config/dotnet-tools.json        # dotnet-ef 9
 ├── src/PrensEcommerce.Api/
 │   ├── Program.cs                   # composición: Postgres, Redis, tenant, JWT, slices
@@ -37,9 +38,9 @@ backendprensecommerce/
 │   │   │   └── PlaceOrder/PlaceOrder.cs
 │   │   └── Tenants/
 │   │       └── GetCurrentTenant/GetCurrentTenant.cs
-│   ├── Domain/                      # entidades compartidas por varios slices
+│   ├── Domain/                      # entidades compartidas por varios slices (un archivo por módulo)
 │   │   ├── Entity.cs                # Entity, ITenantEntity, TenantEntity
-│   │   ├── Tenant.cs  Product.cs  User.cs  Order.cs
+│   │   ├── Tenant.cs  Identity.cs  Catalog.cs  Sales.cs  Support.cs  Crm.cs
 │   ├── Infrastructure/
 │   │   ├── MultiTenancy/            # ITenantProvider, resolvers, middleware, store
 │   │   └── Persistence/             # AppDbContext, configuraciones, migraciones, seeder
@@ -78,6 +79,26 @@ de operar. El aislamiento se refuerza en varias capas:
 5. **Redis**: claves con prefijo `t:{tenantId}:`.
 
 Siguiente paso recomendado para defensa en profundidad: Row-Level Security de PostgreSQL.
+
+### Esquemas de la base de datos
+
+Una sola base `prens_ecommerce`, con un esquema de PostgreSQL por módulo. Todas las tablas
+(excepto `core.tenants`) llevan `tenant_id`.
+
+| Esquema | Tablas | Módulo |
+|---|---|---|
+| `core` | `tenants`, `__ef_migrations_history` | Tiendas |
+| `identity` | `users`, `roles`, `user_roles` | Usuarios y roles (permisos en `text[]`) |
+| `catalog` | `categories`, `products` | Catálogo y mantenimiento de productos |
+| `sales` | `orders`, `order_items`, `payments` | Checkout y pagos |
+| `support` | `tickets`, `ticket_messages` | Atención al cliente |
+| `crm` | `loyalty_accounts`, `loyalty_transactions`, `customer_notes`, `automation_rules`, `automation_runs` | Fidelización, CRM y automatizaciones |
+
+Roles de sistema por tienda: `Admin`, `CatalogManager`, `CustomerService`, `Marketing`, `Customer`.
+El JWT incluye un claim `role` por rol; `POST /api/products` exige `Admin` o `CatalogManager`.
+
+En `Development`, la tienda `demo` incluye un administrador **`admin@prens.shop` / `Admin123!`**
+(solo para desarrollo local).
 
 ### Resolución del tenant
 
@@ -120,7 +141,7 @@ curl http://demo.localhost:5080/api/tenant          # resolución por subdominio
 | GET | `/api/tenant` | – |
 | GET | `/api/products?category=&search=&sort=&page=&pageSize=` | – |
 | GET | `/api/products/{id}` | – |
-| POST | `/api/products` | JWT |
+| POST | `/api/products` | JWT (Admin, CatalogManager) |
 | POST | `/api/auth/register` · `/api/auth/login` | – |
 | GET | `/api/cart` | JWT |
 | POST | `/api/cart/items` | JWT |
@@ -131,6 +152,8 @@ curl http://demo.localhost:5080/api/tenant          # resolución por subdominio
 `sort` acepta los valores del frontend: `relevance`, `price-asc`, `price-desc`, `rating`.
 
 ### Migraciones
+
+Sin .NET, puedes crear todo con el script: `psql -d prens_ecommerce -f database/schema.sql`.
 
 ```bash
 dotnet ef migrations add <Nombre> -p src/PrensEcommerce.Api -o Infrastructure/Persistence/Migrations

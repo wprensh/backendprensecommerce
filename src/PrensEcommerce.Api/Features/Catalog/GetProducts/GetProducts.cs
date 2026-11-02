@@ -30,11 +30,11 @@ public static class GetProducts
             var page = Math.Max(1, query.Page);
             var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
-            var products = db.Products.AsNoTracking();
+            var products = db.Products.AsNoTracking().Where(p => p.IsActive);
 
             if (!string.IsNullOrWhiteSpace(query.Category))
             {
-                products = products.Where(p => p.Category == query.Category);
+                products = products.Where(p => p.Category!.Slug == query.Category);
             }
 
             if (!string.IsNullOrWhiteSpace(query.Search))

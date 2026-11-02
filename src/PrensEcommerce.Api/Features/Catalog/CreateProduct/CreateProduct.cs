@@ -1,17 +1,19 @@
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using PrensEcommerce.Api.Common.Abstractions;
+using PrensEcommerce.Api.Common.Errors;
 using PrensEcommerce.Api.Common.Validation;
 using PrensEcommerce.Api.Domain;
 using PrensEcommerce.Api.Infrastructure.Persistence;
 
 namespace PrensEcommerce.Api.Features.Catalog.CreateProduct;
 
-/// <summary>POST /api/products — alta de producto en la tienda actual (requiere autenticación).</summary>
+/// <summary>POST /api/products — alta de producto en la tienda actual (requiere rol Admin o CatalogManager).</summary>
 public static class CreateProduct
 {
     public sealed record Command(
-        string Name, string? Description, decimal Price, int DiscountPercent,
-        string Category, string? ImageUrl, int Stock);
+        string Name, string? Sku, string? Description, decimal Price, int DiscountPercent,
+        Guid CategoryId, string? ImageUrl, int Stock);
 
     public sealed record Response(Guid Id);
 
@@ -23,7 +25,8 @@ public static class CreateProduct
             RuleFor(c => c.Description).MaximumLength(4000);
             RuleFor(c => c.Price).GreaterThan(0);
             RuleFor(c => c.DiscountPercent).InclusiveBetween(0, 100);
-            RuleFor(c => c.Category).NotEmpty().MaximumLength(50);
+            RuleFor(c => c.Sku).MaximumLength(64);
+            RuleFor(c => c.CategoryId).NotEmpty();
             RuleFor(c => c.Stock).GreaterThanOrEqualTo(0);
         }
     }
@@ -32,27 +35,37 @@ public static class CreateProduct
     {
         public void MapEndpoint(IEndpointRouteBuilder app) =>
             app.MapPost("/products", async (Command command, Handler handler, CancellationToken ct) =>
-                {
-                    var response = await handler.HandleAsync(command, ct);
-                    return TypedResults.Created($"/api/products/{response.Id}", response);
-                })
+                    (await handler.HandleAsync(command, ct))
+                        .Match(r => TypedResults.Created($"/api/products/{r.Id}", r)))
                 .WithValidation<Command>()
-                .RequireAuthorization()
+                .RequireAuthorization(policy => policy.RequireRole(SystemRoles.Admin, SystemRoles.CatalogManager))
                 .WithTags("Catalog")
                 .WithName("CreateProduct");
     }
 
     public sealed class Handler(AppDbContext db) : IHandler
     {
-        public async Task<Response> HandleAsync(Command command, CancellationToken ct)
+        public async Task<Result<Response>> HandleAsync(Command command, CancellationToken ct)
         {
+            if (!await db.Categories.AnyAsync(c => c.Id == command.CategoryId, ct))
+            {
+                return Error.Validation("Product.CategoryNotFound", "La categoría no existe en esta tienda.");
+            }
+
+            var sku = string.IsNullOrWhiteSpace(command.Sku) ? null : command.Sku.Trim().ToUpperInvariant();
+            if (sku is not null && await db.Products.AnyAsync(p => p.Sku == sku, ct))
+            {
+                return Error.Conflict("Product.SkuInUse", $"Ya existe un producto con el SKU {sku}.");
+            }
+
             var product = new Product
             {
+                Sku = sku,
                 Name = command.Name.Trim(),
                 Description = command.Description?.Trim() ?? string.Empty,
                 Price = command.Price,
                 DiscountPercent = command.DiscountPercent,
-                Category = command.Category.Trim().ToLowerInvariant(),
+                CategoryId = command.CategoryId,
                 ImageUrl = command.ImageUrl ?? string.Empty,
                 Stock = command.Stock,
             };

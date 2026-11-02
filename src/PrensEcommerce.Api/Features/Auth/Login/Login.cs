@@ -42,7 +42,7 @@ public static class Login
         {
             var email = command.Email.Trim().ToLowerInvariant();
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
-            if (user is null)
+            if (user is null || !user.IsActive)
             {
                 return InvalidCredentials;
             }
@@ -56,10 +56,12 @@ public static class Login
             if (verification == PasswordVerificationResult.SuccessRehashNeeded)
             {
                 user.PasswordHash = hasher.HashPassword(user, command.Password);
-                await db.SaveChangesAsync(ct);
             }
 
-            return responses.Create(user);
+            user.LastLoginAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+
+            return await responses.CreateAsync(user, ct);
         }
     }
 }
