@@ -45,7 +45,6 @@ public static class CustomerQueries
         where u.Roles.All(r => r.Role!.Name == SystemRoles.Customer)
         join c in db.CartActivities.AsNoTracking() on u.Id equals c.UserId into carts
         from c in carts.DefaultIfEmpty()
-        let orders = db.Orders.Where(o => o.UserId == u.Id && o.Status != OrderStatus.Cancelled)
         select new CustomerRow
         {
             Id = u.Id,
@@ -56,9 +55,9 @@ public static class CustomerQueries
             AcceptsMarketing = u.AcceptsMarketing,
             Tags = u.Tags,
             RegisteredAt = u.CreatedAt,
-            OrderCount = orders.Count(),
-            TotalSpent = orders.Sum(o => (decimal?)o.Total) ?? 0m,
-            LastOrderAt = orders.Max(o => (DateTimeOffset?)o.CreatedAt),
+            OrderCount = db.Orders.Count(o => o.UserId == u.Id && o.Status != OrderStatus.Cancelled),
+            TotalSpent = db.Orders.Where(o => o.UserId == u.Id && o.Status != OrderStatus.Cancelled).Sum(o => (decimal?)o.Total) ?? 0m,
+            LastOrderAt = db.Orders.Where(o => o.UserId == u.Id && o.Status != OrderStatus.Cancelled).Max(o => (DateTimeOffset?)o.CreatedAt),
             CartItemCount = c == null ? 0 : c.ItemCount,
             CartUpdatedAt = c == null ? null : c.LastActivityAt,
         };

@@ -8,7 +8,8 @@ public static partial class TemplateRenderer
 {
     public static readonly IReadOnlyList<string> Variables = ["nombre", "email", "tienda", "pedido", "total", "unidades"];
 
-    private static readonly CultureInfo Money = CultureInfo.GetCultureInfo("es-ES");
+    // InvariantGlobalization está activo: formato español (1.234,56) definido a mano.
+    private static readonly NumberFormatInfo Money = new() { NumberDecimalSeparator = ",", NumberGroupSeparator = "." };
 
     public static string Render(string template, IReadOnlyDictionary<string, string?> values) =>
         VariablePattern().Replace(template, match =>

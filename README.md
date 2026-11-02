@@ -148,8 +148,23 @@ curl http://demo.localhost:5080/api/tenant          # resolución por subdominio
 | DELETE | `/api/cart/items/{productId}` | JWT |
 | POST | `/api/checkout` | JWT |
 | GET | `/health` | – |
+| GET | `/api/crm/summary` · `/api/crm/customers` · `/api/crm/customers/{id}` · `/api/crm/segments` | JWT (Admin, Marketing, CustomerService) |
+| PUT | `/api/crm/customers/{id}` (etiquetas y consentimiento) | JWT (Admin, Marketing) |
+| POST | `/api/crm/customers/{id}/notes` · `/api/crm/segments/preview` | JWT (Admin, Marketing, CustomerService) |
+| POST/PUT/DELETE | `/api/crm/segments[/{id}]` | JWT (Admin, Marketing) |
+| GET | `/api/automations/rules` · `/api/automations/runs` · `/api/automations/templates` | JWT (Admin, Marketing, CustomerService) |
+| POST/PUT/PATCH/DELETE | `/api/automations/rules[/{id}[/active]]` · POST `/api/automations/run` | JWT (Admin, Marketing) |
 
 `sort` acepta los valores del frontend: `relevance`, `price-asc`, `price-desc`, `rating`.
+
+### CRM y automatizaciones
+
+- **Eventos de cliente** (`crm.customer_events`): un interceptor de EF Core registra, en la misma transacción, altas de cliente, pedidos creados, pedidos pagados y tickets cerrados. Es la línea de tiempo del cliente y la entrada del motor.
+- **Carrito abandonado**: el carrito vive en Redis; cada cambio se anota en `crm.cart_activities` para detectarlo sin recorrer Redis.
+- **Reglas** (`crm.automation_rules`): disparador (`UserRegistered`, `OrderPlaced`, `OrderPaid`, `CartAbandoned`, `TicketClosed`, `Inactivity`) + acción (`SendEmail` con plantilla o asunto/cuerpo, `AddTag`) + retraso en minutos. `AwardPoints`, `CreateTicket`, `CallWebhook` y `Birthday` quedan registradas como «omitidas» hasta que exista su implementación (`IAutomationActionHandler`).
+- **Motor** (`AutomationWorker`, cada `Automations:IntervalSeconds`): programa ejecuciones (`crm.automation_runs`, con clave de idempotencia) y ejecuta las vencidas. Los correos de carrito abandonado e inactividad solo se envían a clientes con `accepts_marketing`.
+- **Correo en modo simulación**: `Automations:EmailMode` solo admite `Simulated`. No sale ningún correo real; el correo renderizado queda en el `payload` de la ejecución y en el log. El envío real será otra implementación de `IEmailSender`.
+- **Segmentos** (`crm.customer_segments`): reglas dinámicas (nº de pedidos, gasto, recencia, alta, carrito, consentimiento, etiqueta) evaluadas en SQL en cada consulta.
 
 ### Migraciones
 
@@ -171,3 +186,5 @@ Usa variables de entorno (no subas secretos al repositorio):
 | `Jwt__SigningKey` | clave aleatoria de 32+ caracteres |
 | `MultiTenancy__RootDomains__0` | `prens.shop` |
 | `Cors__AllowedOrigins__0` | `https://*.prens.shop` |
+| `Automations__Enabled` | `true` (proceso en segundo plano de automatizaciones) |
+| `Automations__IntervalSeconds` | `60` |

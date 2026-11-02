@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PrensEcommerce.Api.Common.Abstractions;
 using PrensEcommerce.Api.Domain;
+using PrensEcommerce.Api.Infrastructure.MultiTenancy;
 using PrensEcommerce.Api.Infrastructure.Persistence;
 
 namespace PrensEcommerce.Api.Features.Crm.GetCrmSummary;
@@ -23,7 +24,7 @@ public static class GetCrmSummary
                 .WithName("GetCrmSummary");
     }
 
-    public sealed class Handler(AppDbContext db, TimeProvider clock) : IHandler
+    public sealed class Handler(AppDbContext db, ITenantProvider tenant, TimeProvider clock) : IHandler
     {
         public async Task<Response> HandleAsync(CancellationToken ct)
         {
@@ -32,39 +33,32 @@ public static class GetCrmSummary
             var weekAgo = now.AddDays(-7);
             var customers = CustomerQueries.Customers(db);
 
-            var stats = await customers
-                .GroupBy(_ => 1)
-                .Select(g => new
-                {
-                    Total = g.Count(),
-                    New = g.Count(c => c.RegisteredAt >= monthAgo),
-                    Buyers = g.Count(c => c.OrderCount > 0),
-                    Repeat = g.Count(c => c.OrderCount > 1),
-                    Marketing = g.Count(c => c.AcceptsMarketing),
-                    Carts = g.Count(c => c.CartItemCount > 0),
-                    Revenue = g.Sum(c => c.TotalSpent),
-                    Orders = g.Sum(c => c.OrderCount),
-                })
-                .FirstOrDefaultAsync(ct);
+            // Consultas agregadas sencillas: EF no traduce un GroupBy sobre la proyección con subconsultas.
+            var total = await customers.CountAsync(ct);
+            var newCustomers = await customers.CountAsync(c => c.RegisteredAt >= monthAgo, ct);
+            var buyers = await customers.CountAsync(c => c.OrderCount > 0, ct);
+            var repeat = await customers.CountAsync(c => c.OrderCount > 1, ct);
+            var marketing = await customers.CountAsync(c => c.AcceptsMarketing, ct);
+            var carts = await customers.CountAsync(c => c.CartItemCount > 0, ct);
+            var paidOrders = db.Orders.Where(o => o.Status != OrderStatus.Cancelled);
+            var revenue = await paidOrders.SumAsync(o => (decimal?)o.Total, ct) ?? 0m;
+            var orders = await paidOrders.CountAsync(ct);
 
             var automations = await db.AutomationRuns.CountAsync(r => r.ExecutedAt >= weekAgo, ct);
 
-            var tags = await customers
-                .SelectMany(c => c.Tags)
-                .GroupBy(t => t)
-                .Select(g => new TagCount(g.Key, g.Count()))
-                .OrderByDescending(t => t.Customers)
-                .Take(10)
+            // unnest() de text[] no es traducible desde LINQ: SQL directo, con el tenant explícito.
+            var tags = await db.Database.SqlQuery<TagCount>($"""
+                    SELECT t AS tag, count(*)::int AS customers
+                    FROM identity.users u, unnest(u.tags) AS t
+                    WHERE u.tenant_id = {tenant.TenantId}
+                    GROUP BY t
+                    ORDER BY customers DESC, t
+                    LIMIT 10
+                    """)
                 .ToListAsync(ct);
 
-            if (stats is null)
-            {
-                return new Response(0, 0, 0, 0, 0, 0, 0m, 0m, automations, tags);
-            }
-
-            var average = stats.Orders == 0 ? 0m : Math.Round(stats.Revenue / stats.Orders, 2);
-            return new Response(stats.Total, stats.New, stats.Buyers, stats.Repeat, stats.Marketing, stats.Carts,
-                stats.Revenue, average, automations, tags);
+            var average = orders == 0 ? 0m : Math.Round(revenue / orders, 2);
+            return new Response(total, newCustomers, buyers, repeat, marketing, carts, revenue, average, automations, tags);
         }
     }
 }

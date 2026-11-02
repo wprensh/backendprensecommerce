@@ -87,7 +87,7 @@ public sealed class AutomationEngine(
 
             // Una vez por "sesión" de carrito: si el cliente vuelve a tocarlo, cambia la clave.
             runs.AddRange(carts.Select(cart => NewRun(rule, cart.UserId, now,
-                $"{rule.Id:N}:cart:{cart.UserId:N}:{cart.LastActivityAt.ToUnixTimeSeconds()}",
+                $"{rule.Id:N}:cart:{cart.UserId:N}:{cart.LastActivityAt.ToUnixTimeMilliseconds()}",
                 new JsonObject { ["units"] = cart.ItemCount, ["cartUpdatedAt"] = cart.LastActivityAt })));
         }
 
