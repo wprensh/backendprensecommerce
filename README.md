@@ -35,7 +35,12 @@ backendprensecommerce/
 │   │   │   ├── AddCartItem/AddCartItem.cs
 │   │   │   └── RemoveCartItem/RemoveCartItem.cs
 │   │   ├── Checkout/
-│   │   │   └── PlaceOrder/PlaceOrder.cs
+│   │   │   ├── CheckoutOptions.cs   # moneda, envío, envío gratis desde…
+│   │   │   ├── GetCheckoutConfig/GetCheckoutConfig.cs
+│   │   │   └── PlaceOrder/PlaceOrder.cs   # pedido + cobro + stock
+│   │   ├── Orders/
+│   │   │   ├── GetOrderById/GetOrderById.cs
+│   │   │   └── GetMyOrders/GetMyOrders.cs
 │   │   └── Tenants/
 │   │       └── GetCurrentTenant/GetCurrentTenant.cs
 │   ├── Domain/                      # entidades compartidas por varios slices (un archivo por módulo)
@@ -43,6 +48,7 @@ backendprensecommerce/
 │   │   ├── Tenant.cs  Identity.cs  Catalog.cs  Sales.cs  Support.cs  Crm.cs
 │   ├── Infrastructure/
 │   │   ├── MultiTenancy/            # ITenantProvider, resolvers, middleware, store
+│   │   ├── Payments/                # IPaymentGateway + SimulatedPaymentGateway
 │   │   └── Persistence/             # AppDbContext, configuraciones, migraciones, seeder
 │   └── Common/                      # piezas transversales sin lógica de negocio
 │       ├── Abstractions/            # IEndpoint, IHandler
@@ -151,6 +157,37 @@ curl http://demo.localhost:5080/api/tenant          # resolución por subdominio
 
 `sort` acepta los valores del frontend: `relevance`, `price-asc`, `price-desc`, `rating`.
 
+### Atención al cliente y fidelización
+
+**Soporte** (`Features/Support`, esquema `support`)
+
+| Método | Ruta | Quién |
+|---|---|---|
+| POST | `/api/support/tickets` | Cliente: abre un caso (asunto, categoría, mensaje, pedido opcional) |
+| GET | `/api/support/tickets` · `/api/support/tickets/{id}` | Cliente: sus casos y la conversación (sin notas internas) |
+| POST | `/api/support/tickets/{id}/messages` | Cliente: responde (el caso vuelve a `open`) |
+| POST | `/api/support/tickets/{id}/rating` | Cliente: valora 1–5 un caso resuelto |
+| GET | `/api/admin/support/tickets?status=&priority=&search=` | Agente: bandeja con contadores y nota media |
+| GET/PATCH | `/api/admin/support/tickets/{id}` | Agente: detalle; cambia estado/prioridad |
+| POST | `/api/admin/support/tickets/{id}/messages` | Agente: responde (`waitingCustomer`) o nota interna (`isInternal: true`) |
+
+Cada caso tiene un número correlativo por tienda (`TK-000001`). Pagos y devoluciones entran con prioridad alta.
+
+**Fidelización** (`Features/Loyalty`, esquema `crm`)
+
+| Método | Ruta | Quién |
+|---|---|---|
+| GET | `/api/loyalty/me` | Cliente: saldo, nivel, progreso, movimientos y cupones activos |
+| POST | `/api/loyalty/redeem` | Cliente: canjea puntos por un cupón `PR-XXXXXXXX` |
+| POST | `/api/admin/loyalty/adjustments` | Admin/Marketing: bonificación o corrección manual |
+
+Reglas por defecto (sección `Loyalty` de appsettings, importes en COP): 1 punto por cada $1.000, 1 punto = $10 (1 % de devolución), canje mínimo 500 puntos ($5.000),
+cupones válidos 90 días. Niveles por puntos históricos: Bronce 0, Plata 1 000 (×1,25), Oro 5 000 (×1,5),
+Platino 15 000 (×2). El checkout (`POST /api/checkout`) acepta `voucherCode` y devuelve `loyaltyDiscount` y `pointsEarned`.
+
+Políticas: `support-agent` (rol Admin o CustomerService, o permiso `support.write`) y `loyalty-manager`
+(rol Admin o Marketing, o permiso `crm.write`).
+
 ### Migraciones
 
 Sin .NET, puedes crear todo con el script: `psql -d prens_ecommerce -f database/schema.sql`.
@@ -171,3 +208,29 @@ Usa variables de entorno (no subas secretos al repositorio):
 | `Jwt__SigningKey` | clave aleatoria de 32+ caracteres |
 | `MultiTenancy__RootDomains__0` | `prens.shop` |
 | `Cors__AllowedOrigins__0` | `https://*.prens.shop` |
+
+## Checkout y pagos
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/checkout/config` | Moneda, coste de envío, pasarela activa y métodos de pago |
+| `POST` | `/api/checkout` | Crea el pedido, cobra y descuenta stock (`201`, `402` si se rechaza el pago, `409` sin stock) |
+| `GET` | `/api/orders` | Pedidos del usuario |
+| `GET` | `/api/orders/{id}` | Detalle de un pedido (confirmación) |
+
+`POST /api/checkout` acepta `items` en el cuerpo (carrito del navegador) o, si se omite, usa el carrito de Redis.
+Los precios siempre se recalculan en servidor.
+
+**Pasarela enchufable.** `IPaymentGateway` (`Infrastructure/Payments`) se elige con `Payments:Provider`.
+Hoy existe `simulated`, que no mueve dinero y responde según el token que genera el frontend:
+
+| Token | Resultado |
+|---|---|
+| `tok_sim_declined` | Rechazada (402) |
+| `tok_sim_insufficient_funds` | Fondos insuficientes (402) |
+| otro `tok_sim_*` | Aprobada → pedido `paid` |
+| transferencia / contra entrega | Pago `pending` con instrucciones |
+
+Para un proveedor real (Mercado Pago, Stripe, Izipay…) se añade otra implementación de `IPaymentGateway`
+y su caso en `PaymentsExtensions`; la tarjeta se tokeniza en el navegador con el SDK del proveedor, así que
+el número nunca llega a la API.

@@ -29,6 +29,9 @@ public enum PaymentStatus
 
 public sealed class Order : TenantEntity
 {
+    /// <summary>Número legible para el cliente (p. ej. <c>PR-20261102-7K3QZD</c>), único por tenant.</summary>
+    public required string OrderNumber { get; set; }
+
     public Guid UserId { get; set; }
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
@@ -37,9 +40,16 @@ public sealed class Order : TenantEntity
 
     public required ShippingAddress ShippingAddress { get; set; }
 
+    public decimal Subtotal { get; set; }
+
+    public decimal ShippingCost { get; set; }
+
+    /// <summary>Descuento aplicado con un cupón de puntos de fidelización.</summary>
+    public decimal LoyaltyDiscount { get; set; }
+
     public decimal Total { get; set; }
 
-    public string Currency { get; set; } = "EUR";
+    public string Currency { get; set; } = "COP";
 
     public List<OrderItem> Items { get; init; } = [];
 
@@ -70,7 +80,7 @@ public sealed class Payment : TenantEntity
 
     public decimal Amount { get; set; }
 
-    public string Currency { get; set; } = "EUR";
+    public string Currency { get; set; } = "COP";
 
     /// <summary>Pasarela usada (ej. "stripe", "redsys", "manual").</summary>
     public string Provider { get; set; } = "manual";

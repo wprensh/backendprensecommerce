@@ -25,9 +25,38 @@ public sealed class LoyaltyAccount : TenantEntity
 
     public int PointsBalance { get; set; }
 
+    /// <summary>Puntos ganados en total (no baja al canjear); determina el nivel.</summary>
+    public int LifetimePoints { get; set; }
+
     public LoyaltyTier Tier { get; set; } = LoyaltyTier.Bronze;
 
     public List<LoyaltyTransaction> Transactions { get; init; } = [];
+
+    /// <summary>Registra un movimiento con signo y actualiza saldo e histórico. Nunca deja saldo negativo.</summary>
+    public LoyaltyTransaction Post(LoyaltyTransactionType type, int points, string reason, Guid? orderId = null)
+    {
+        if (PointsBalance + points < 0)
+        {
+            throw new InvalidOperationException("El saldo de puntos no puede ser negativo.");
+        }
+
+        PointsBalance += points;
+        if (points > 0 && type is LoyaltyTransactionType.Earn or LoyaltyTransactionType.Adjust)
+        {
+            LifetimePoints += points;
+        }
+
+        var transaction = new LoyaltyTransaction
+        {
+            AccountId = Id,
+            Type = type,
+            Points = points,
+            Reason = reason,
+            OrderId = orderId,
+        };
+        Transactions.Add(transaction);
+        return transaction;
+    }
 }
 
 /// <summary>Movimiento de puntos. El saldo de la cuenta es la suma de sus movimientos.</summary>
@@ -43,6 +72,26 @@ public sealed class LoyaltyTransaction : TenantEntity
     public required string Reason { get; set; }
 
     public Guid? OrderId { get; set; }
+}
+
+/// <summary>Cupón generado al canjear puntos; se aplica como descuento en el checkout.</summary>
+public sealed class LoyaltyVoucher : TenantEntity
+{
+    public Guid UserId { get; set; }
+
+    public required string Code { get; set; }
+
+    public decimal Amount { get; set; }
+
+    public int Points { get; set; }
+
+    public DateTimeOffset ExpiresAt { get; set; }
+
+    public DateTimeOffset? RedeemedAt { get; set; }
+
+    public Guid? OrderId { get; set; }
+
+    public bool IsUsable(DateTimeOffset now) => RedeemedAt is null && ExpiresAt > now;
 }
 
 /// <summary>Nota del equipo sobre un cliente (historial CRM).</summary>

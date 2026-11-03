@@ -755,5 +755,51 @@ BEGIN
     VALUES ('20261102180628_InitialCreate', '9.0.22');
     END IF;
 END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102181015_AddOrderNumberAndCheckoutTotals') THEN
+    ALTER TABLE sales.orders ADD order_number character varying(32) NOT NULL DEFAULT '';
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102181015_AddOrderNumberAndCheckoutTotals') THEN
+    ALTER TABLE sales.orders ADD shipping_cost numeric(12,2) NOT NULL DEFAULT 0.0;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102181015_AddOrderNumberAndCheckoutTotals') THEN
+    ALTER TABLE sales.orders ADD subtotal numeric(12,2) NOT NULL DEFAULT 0.0;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102181015_AddOrderNumberAndCheckoutTotals') THEN
+    UPDATE sales.orders
+    SET order_number = 'PR-' || to_char(created_at, 'YYYYMMDD') || '-' || upper(substr(replace(id::text, '-', ''), 25, 8)),
+        subtotal = total
+    WHERE order_number = '';
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102181015_AddOrderNumberAndCheckoutTotals') THEN
+    CREATE UNIQUE INDEX ix_orders_tenant_id_order_number ON sales.orders (tenant_id, order_number);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102181015_AddOrderNumberAndCheckoutTotals') THEN
+    INSERT INTO core.__ef_migrations_history (migration_id, product_version)
+    VALUES ('20261102181015_AddOrderNumberAndCheckoutTotals', '9.0.22');
+    END IF;
+END $EF$;
 COMMIT;
 
