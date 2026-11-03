@@ -54,4 +54,23 @@ public class LoyaltyTests
         voucher.RedeemedAt = now;
         Assert.False(voucher.IsUsable(now));
     }
+
+    [Theory]
+    [InlineData(579_900, 0, 579)]       // Bronce: 1 punto por cada $1.000
+    [InlineData(579_900, 1_000, 724)]   // Plata: ×1,25
+    [InlineData(999, 0, 0)]
+    public void Points_are_earned_per_thousand_pesos(decimal amount, int lifetime, int expected)
+    {
+        var service = new LoyaltyService(null!, Microsoft.Extensions.Options.Options.Create(new LoyaltyOptions()), TimeProvider.System);
+
+        Assert.Equal(expected, service.PointsFor(amount, lifetime));
+    }
+
+    [Fact]
+    public void Default_redemption_is_one_percent_in_pesos()
+    {
+        var options = new LoyaltyOptions();
+
+        Assert.Equal(5_000m, options.MinRedeemPoints * options.PointValue);
+    }
 }

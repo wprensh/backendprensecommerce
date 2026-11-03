@@ -154,12 +154,12 @@ curl http://demo.localhost:5080/api/tenant          # resolución por subdominio
 | DELETE | `/api/cart/items/{productId}` | JWT |
 | POST | `/api/checkout` | JWT |
 | GET | `/health` | – |
-| GET | `/api/crm/summary` · `/api/crm/customers` · `/api/crm/customers/{id}` · `/api/crm/segments` | JWT (Admin, Marketing, CustomerService) |
-| PUT | `/api/crm/customers/{id}` (etiquetas y consentimiento) | JWT (Admin, Marketing) |
-| POST | `/api/crm/customers/{id}/notes` · `/api/crm/segments/preview` | JWT (Admin, Marketing, CustomerService) |
-| POST/PUT/DELETE | `/api/crm/segments[/{id}]` | JWT (Admin, Marketing) |
-| GET | `/api/automations/rules` · `/api/automations/runs` · `/api/automations/templates` | JWT (Admin, Marketing, CustomerService) |
-| POST/PUT/PATCH/DELETE | `/api/automations/rules[/{id}[/active]]` · POST `/api/automations/run` | JWT (Admin, Marketing) |
+| GET | `/api/crm/summary` · `/api/crm/customers` · `/api/crm/customers/{id}` · `/api/crm/segments` | JWT (`crm.read`) |
+| PUT | `/api/crm/customers/{id}` (etiquetas y consentimiento) | JWT (`crm.write`) |
+| POST | `/api/crm/customers/{id}/notes` · `/api/crm/segments/preview` | JWT (`crm.read`) |
+| POST/PUT/DELETE | `/api/crm/segments[/{id}]` | JWT (`crm.write`) |
+| GET | `/api/automations/rules` · `/api/automations/runs` · `/api/automations/templates` | JWT (`crm.read`) |
+| POST/PUT/PATCH/DELETE | `/api/automations/rules[/{id}[/active]]` · POST `/api/automations/run` | JWT (`crm.write`) |
 
 `sort` acepta los valores del frontend: `relevance`, `price-asc`, `price-desc`, `rating`.
 
@@ -196,7 +196,7 @@ Cada caso tiene un número correlativo por tienda (`TK-000001`). Pagos y devoluc
 | POST | `/api/loyalty/redeem` | Cliente: canjea puntos por un cupón `PR-XXXXXXXX` |
 | POST | `/api/admin/loyalty/adjustments` | Admin/Marketing: bonificación o corrección manual |
 
-Reglas por defecto (sección `Loyalty` de appsettings): 1 punto por euro, 100 puntos = 1 €, canje mínimo 500,
+Reglas por defecto (sección `Loyalty` de appsettings, importes en COP): 1 punto por cada $1.000, 1 punto = $10 (1 % de devolución), canje mínimo 500 puntos ($5.000),
 cupones válidos 90 días. Niveles por puntos históricos: Bronce 0, Plata 1 000 (×1,25), Oro 5 000 (×1,5),
 Platino 15 000 (×2). El checkout (`POST /api/checkout`) acepta `voucherCode` y devuelve `loyaltyDiscount` y `pointsEarned`.
 

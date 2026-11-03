@@ -167,6 +167,59 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("automation_runs", "crm");
                 });
 
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.Brand", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("logo_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("slug");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_brands");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_brands_tenant_id");
+
+                    b.HasIndex("TenantId", "Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ix_brands_tenant_id_slug");
+
+                    b.ToTable("brands", "catalog");
+                });
+
             modelBuilder.Entity("PrensEcommerce.Api.Domain.CartActivity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -862,6 +915,10 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("BrandId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("brand_id");
+
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
@@ -929,6 +986,9 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_products");
+
+                    b.HasIndex("BrandId")
+                        .HasDatabaseName("ix_products_brand_id");
 
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_products_category_id");
@@ -1368,6 +1428,16 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_automation_runs_users_user_id");
                 });
 
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.Brand", b =>
+                {
+                    b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_brands_tenants_tenant_id");
+                });
+
             modelBuilder.Entity("PrensEcommerce.Api.Domain.CartActivity", b =>
                 {
                     b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
@@ -1664,6 +1734,12 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.Product", b =>
                 {
+                    b.HasOne("PrensEcommerce.Api.Domain.Brand", "Brand")
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_products_brands_brand_id");
+
                     b.HasOne("PrensEcommerce.Api.Domain.Category", "Category")
                         .WithMany()
                         .HasForeignKey("CategoryId")
@@ -1677,6 +1753,8 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_products_tenants_tenant_id");
+
+                    b.Navigation("Brand");
 
                     b.Navigation("Category");
                 });

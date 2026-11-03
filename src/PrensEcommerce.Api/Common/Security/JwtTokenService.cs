@@ -3,18 +3,19 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using PrensEcommerce.Api.Common.Authorization;
 using PrensEcommerce.Api.Domain;
 
 namespace PrensEcommerce.Api.Common.Security;
 
 public interface ITokenService
 {
-    (string Token, DateTimeOffset ExpiresAt) CreateToken(User user, IEnumerable<string> roles);
+    (string Token, DateTimeOffset ExpiresAt) CreateToken(User user, UserAccess access);
 }
 
 internal sealed class JwtTokenService(IOptions<JwtOptions> options, TimeProvider clock) : ITokenService
 {
-    public (string Token, DateTimeOffset ExpiresAt) CreateToken(User user, IEnumerable<string> roles)
+    public (string Token, DateTimeOffset ExpiresAt) CreateToken(User user, UserAccess access)
     {
         var jwt = options.Value;
         var expiresAt = clock.GetUtcNow().AddMinutes(jwt.ExpirationMinutes);
@@ -26,7 +27,8 @@ internal sealed class JwtTokenService(IOptions<JwtOptions> options, TimeProvider
             new Claim(JwtRegisteredClaimNames.Name, user.Name),
             new Claim(AppClaims.TenantId, user.TenantId.ToString()),
         };
-        claims.AddRange(roles.Select(role => new Claim(AppClaims.Role, role)));
+        claims.AddRange(access.Roles.Select(role => new Claim(AppClaims.Role, role)));
+        claims.AddRange(access.Permissions.Select(permission => new Claim(AppPermissionClaims.Permission, permission)));
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)), SecurityAlgorithms.HmacSha256);

@@ -8,13 +8,13 @@ public sealed class LoyaltyOptions
 {
     public const string SectionName = "Loyalty";
 
-    /// <summary>Puntos base por cada euro gastado (se redondea hacia abajo).</summary>
-    [Range(0, 100)]
-    public decimal PointsPerEuro { get; set; } = 1;
+    /// <summary>Pesos (COP) que hay que gastar para ganar 1 punto base (se redondea hacia abajo).</summary>
+    [Range(1, 1_000_000)]
+    public decimal PesosPerPoint { get; set; } = 1000;
 
-    /// <summary>Valor en euros de un punto al canjearlo (0,01 → 100 puntos = 1 €).</summary>
-    [Range(0.0001, 1)]
-    public decimal PointValue { get; set; } = 0.01m;
+    /// <summary>Valor en pesos de un punto al canjearlo ($10 → 1 % de devolución con 1 punto/$1.000).</summary>
+    [Range(0.01, 100_000)]
+    public decimal PointValue { get; set; } = 10;
 
     /// <summary>Mínimo de puntos por canje.</summary>
     [Range(1, int.MaxValue)]

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using PrensEcommerce.Api.Common.Authorization;
 using PrensEcommerce.Api.Common.Caching;
 using PrensEcommerce.Api.Common.Endpoints;
 using PrensEcommerce.Api.Common.Errors;
@@ -90,6 +91,7 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
         };
     });
 builder.Services.AddAuthorizationBuilder().AddAppPolicies();
+builder.Services.AddPermissionPolicies();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
@@ -103,6 +105,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTyp
 builder.Services.AddScoped<CartStore>();
 builder.Services.AddCrmAndAutomations(configuration);
 builder.Services.AddScoped<AuthResponseFactory>();
+builder.Services.AddScoped<UserAccessLoader>();
 builder.Services.AddScoped<TicketQueries>();
 builder.Services.AddScoped<LoyaltyService>();
 builder.Services.AddOptions<LoyaltyOptions>()

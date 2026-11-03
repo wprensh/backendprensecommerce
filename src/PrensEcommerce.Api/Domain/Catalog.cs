@@ -1,6 +1,6 @@
 namespace PrensEcommerce.Api.Domain;
 
-// ── Esquema "catalog": categorías y productos ─────────────────────────
+// ── Esquema "catalog": categorías, marcas y productos ─────────────────────────
 
 /// <summary>Categoría del catálogo. Admite jerarquía mediante <see cref="ParentId"/>.</summary>
 public sealed class Category : TenantEntity
@@ -17,6 +17,19 @@ public sealed class Category : TenantEntity
     public Guid? ParentId { get; set; }
 
     public int SortOrder { get; set; }
+
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>Marca o fabricante de productos de una tienda.</summary>
+public sealed class Brand : TenantEntity
+{
+    public required string Name { get; set; }
+
+    /// <summary>Identificador en URL (ej. "sony"). Único por tienda.</summary>
+    public required string Slug { get; set; }
+
+    public string? LogoUrl { get; set; }
 
     public bool IsActive { get; set; } = true;
 }
@@ -40,6 +53,10 @@ public sealed class Product : TenantEntity
 
     public Category? Category { get; set; }
 
+    public Guid? BrandId { get; set; }
+
+    public Brand? Brand { get; set; }
+
     public string ImageUrl { get; set; } = string.Empty;
 
     public decimal Rating { get; set; }
@@ -50,5 +67,6 @@ public sealed class Product : TenantEntity
 
     public bool IsActive { get; set; } = true;
 
-    public decimal FinalPrice => Math.Round(Price * (100 - DiscountPercent) / 100m, 2);
+    /// <summary>Precio con descuento, redondeado a pesos enteros (COP no usa decimales).</summary>
+    public decimal FinalPrice => Math.Round(Price * (100 - DiscountPercent) / 100m, 0, MidpointRounding.AwayFromZero);
 }

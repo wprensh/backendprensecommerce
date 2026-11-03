@@ -30,7 +30,7 @@ public static class AddCustomerNote
                         (await handler.HandleAsync(id, user.GetUserId(), user.Identity?.Name, command, ct))
                             .Match(r => TypedResults.Created($"/api/crm/customers/{id}", r)))
                 .WithValidation<Command>()
-                .RequireCrmRead() // atención al cliente también deja notas
+                .RequireCrmRead() // quien consulta el CRM también puede dejar notas
                 .WithTags("CRM")
                 .WithName("AddCrmCustomerNote");
     }
