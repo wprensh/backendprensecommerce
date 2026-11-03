@@ -17,6 +17,7 @@ using PrensEcommerce.Api.Features.Auth;
 using PrensEcommerce.Api.Features.Automations.Engine;
 using PrensEcommerce.Api.Features.Cart;
 using PrensEcommerce.Api.Features.Checkout;
+using PrensEcommerce.Api.Infrastructure.Media;
 using PrensEcommerce.Api.Infrastructure.Payments;
 using PrensEcommerce.Api.Features.Loyalty;
 using PrensEcommerce.Api.Features.Support;
@@ -120,6 +121,9 @@ builder.Services.AddOptions<CheckoutOptions>()
     .ValidateOnStart();
 builder.Services.AddPayments(configuration);
 
+// Imágenes subidas desde la administración (disco local; cambiable por S3/Blob).
+builder.Services.AddMedia(configuration);
+
 // ─────────────────────────────────────────────────────────────
 // 6. Transversales · errores, OpenAPI, CORS, health checks
 // ─────────────────────────────────────────────────────────────
@@ -159,6 +163,7 @@ else
 
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseMedia();              // imágenes públicas: antes de exigir tenant
 app.UseAuthentication();     // 1º: conocer al usuario (y su claim tenant_id)
 app.UseTenantResolution();   // 2º: resolver tenant y validar que coincide con el token
 app.UseAuthorization();      // 3º: políticas, ya con tenant disponible

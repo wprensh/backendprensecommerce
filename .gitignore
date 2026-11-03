@@ -8,3 +8,6 @@ obj/
 TestResults/
 appsettings.*.local.json
 .env
+
+# Imágenes subidas en desarrollo
+src/PrensEcommerce.Api/media/

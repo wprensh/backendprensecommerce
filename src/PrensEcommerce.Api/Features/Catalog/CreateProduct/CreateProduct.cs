@@ -12,7 +12,10 @@ public static class CreateProduct
 {
     public sealed record Command(
         string Name, string? Sku, string? Description, decimal Price, int DiscountPercent,
-        Guid CategoryId, Guid? BrandId, string? ImageUrl, int Stock, bool IsActive = true) : IProductData;
+        Guid CategoryId, Guid? BrandId, string? ImageUrl, int Stock, bool IsActive = true) : IProductData
+    {
+        public IReadOnlyList<string>? Images { get; init; }
+    }
 
     public sealed record Response(Guid Id);
 
@@ -44,6 +47,7 @@ public static class CreateProduct
                 return error;
             }
 
+            var (images, mainImage) = ProductRules.NormalizeImages(command);
             var product = new Product
             {
                 Name = command.Name.Trim(),
@@ -53,7 +57,8 @@ public static class CreateProduct
                 DiscountPercent = command.DiscountPercent,
                 CategoryId = command.CategoryId,
                 BrandId = command.BrandId,
-                ImageUrl = command.ImageUrl?.Trim() ?? string.Empty,
+                ImageUrl = mainImage,
+                Images = images,
                 Stock = command.Stock,
                 IsActive = command.IsActive,
             };

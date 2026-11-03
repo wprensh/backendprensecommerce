@@ -57,7 +57,11 @@ public sealed class Product : TenantEntity
 
     public Brand? Brand { get; set; }
 
+    /// <summary>Imagen principal (la primera de <see cref="Images"/>); se mantiene para listados y carrito.</summary>
     public string ImageUrl { get; set; } = string.Empty;
+
+    /// <summary>Galería ordenada del producto (columna text[]). La primera es la principal.</summary>
+    public List<string> Images { get; set; } = [];
 
     public decimal Rating { get; set; }
 

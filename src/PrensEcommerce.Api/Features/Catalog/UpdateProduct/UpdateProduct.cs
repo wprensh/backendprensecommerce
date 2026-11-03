@@ -12,7 +12,10 @@ public static class UpdateProduct
 {
     public sealed record Command(
         string Name, string? Sku, string? Description, decimal Price, int DiscountPercent,
-        Guid CategoryId, Guid? BrandId, string? ImageUrl, int Stock, bool IsActive) : IProductData;
+        Guid CategoryId, Guid? BrandId, string? ImageUrl, int Stock, bool IsActive) : IProductData
+    {
+        public IReadOnlyList<string>? Images { get; init; }
+    }
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -55,7 +58,7 @@ public static class UpdateProduct
             product.DiscountPercent = command.DiscountPercent;
             product.CategoryId = command.CategoryId;
             product.BrandId = command.BrandId;
-            product.ImageUrl = command.ImageUrl?.Trim() ?? string.Empty;
+            (product.Images, product.ImageUrl) = ProductRules.NormalizeImages(command);
             product.Stock = command.Stock;
             product.IsActive = command.IsActive;
             await db.SaveChangesAsync(ct);
