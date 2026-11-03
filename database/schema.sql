@@ -801,5 +801,409 @@ BEGIN
     VALUES ('20261102181015_AddOrderNumberAndCheckoutTotals', '9.0.22');
     END IF;
 END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    DROP INDEX crm.ix_loyalty_transactions_account_id;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    ALTER TABLE support.tickets ADD category character varying(20) NOT NULL DEFAULT 'Other';
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    ALTER TABLE support.tickets ADD number integer NOT NULL DEFAULT 0;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    UPDATE support.tickets t SET number = s.rn
+    FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY tenant_id ORDER BY created_at) AS rn
+          FROM support.tickets) s
+    WHERE t.id = s.id;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    ALTER TABLE support.tickets ADD satisfaction_comment character varying(1000);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    ALTER TABLE sales.orders ADD loyalty_discount numeric(12,2) NOT NULL DEFAULT 0.0;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    ALTER TABLE crm.loyalty_accounts ADD lifetime_points integer NOT NULL DEFAULT 0;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    UPDATE crm.loyalty_accounts SET lifetime_points = GREATEST(points_balance, 0);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE TABLE crm.loyalty_vouchers (
+        id uuid NOT NULL,
+        user_id uuid NOT NULL,
+        code character varying(20) NOT NULL,
+        amount numeric(12,2) NOT NULL,
+        points integer NOT NULL,
+        expires_at timestamp with time zone NOT NULL,
+        redeemed_at timestamp with time zone,
+        order_id uuid,
+        created_at timestamp with time zone NOT NULL,
+        updated_at timestamp with time zone,
+        tenant_id uuid NOT NULL,
+        CONSTRAINT pk_loyalty_vouchers PRIMARY KEY (id),
+        CONSTRAINT fk_loyalty_vouchers_orders_order_id FOREIGN KEY (order_id) REFERENCES sales.orders (id) ON DELETE SET NULL,
+        CONSTRAINT fk_loyalty_vouchers_tenants_tenant_id FOREIGN KEY (tenant_id) REFERENCES core.tenants (id) ON DELETE RESTRICT,
+        CONSTRAINT fk_loyalty_vouchers_users_user_id FOREIGN KEY (user_id) REFERENCES identity.users (id) ON DELETE CASCADE
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE INDEX ix_tickets_tenant_id_customer_id ON support.tickets (tenant_id, customer_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE UNIQUE INDEX ix_tickets_tenant_id_number ON support.tickets (tenant_id, number);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE INDEX ix_loyalty_transactions_account_id_created_at ON crm.loyalty_transactions (account_id, created_at);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE INDEX ix_loyalty_vouchers_order_id ON crm.loyalty_vouchers (order_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE INDEX ix_loyalty_vouchers_tenant_id ON crm.loyalty_vouchers (tenant_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE UNIQUE INDEX ix_loyalty_vouchers_tenant_id_code ON crm.loyalty_vouchers (tenant_id, code);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE INDEX ix_loyalty_vouchers_tenant_id_user_id ON crm.loyalty_vouchers (tenant_id, user_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    CREATE INDEX ix_loyalty_vouchers_user_id ON crm.loyalty_vouchers (user_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261102200626_SupportAndLoyalty') THEN
+    INSERT INTO core.__ef_migrations_history (migration_id, product_version)
+    VALUES ('20261102200626_SupportAndLoyalty', '9.0.22');
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103045150_AddCatalogBrands') THEN
+    ALTER TABLE catalog.products ADD brand_id uuid;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103045150_AddCatalogBrands') THEN
+    CREATE TABLE catalog.brands (
+        id uuid NOT NULL,
+        name character varying(100) NOT NULL,
+        slug character varying(100) NOT NULL,
+        logo_url character varying(1000),
+        is_active boolean NOT NULL,
+        created_at timestamp with time zone NOT NULL,
+        updated_at timestamp with time zone,
+        tenant_id uuid NOT NULL,
+        CONSTRAINT pk_brands PRIMARY KEY (id),
+        CONSTRAINT fk_brands_tenants_tenant_id FOREIGN KEY (tenant_id) REFERENCES core.tenants (id) ON DELETE RESTRICT
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103045150_AddCatalogBrands') THEN
+    CREATE INDEX ix_products_brand_id ON catalog.products (brand_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103045150_AddCatalogBrands') THEN
+    CREATE INDEX ix_brands_tenant_id ON catalog.brands (tenant_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103045150_AddCatalogBrands') THEN
+    CREATE UNIQUE INDEX ix_brands_tenant_id_slug ON catalog.brands (tenant_id, slug);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103045150_AddCatalogBrands') THEN
+    ALTER TABLE catalog.products ADD CONSTRAINT fk_products_brands_brand_id FOREIGN KEY (brand_id) REFERENCES catalog.brands (id) ON DELETE RESTRICT;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103045150_AddCatalogBrands') THEN
+    INSERT INTO core.__ef_migrations_history (migration_id, product_version)
+    VALUES ('20261103045150_AddCatalogBrands', '9.0.22');
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    DROP INDEX crm.ix_automation_runs_tenant_id_status;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    ALTER TABLE crm.automation_runs ADD dedup_key character varying(200);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    ALTER TABLE crm.automation_runs ADD scheduled_at timestamp with time zone NOT NULL DEFAULT TIMESTAMPTZ '-infinity';
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    ALTER TABLE crm.automation_runs ADD user_id uuid;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE TABLE crm.cart_activities (
+        id uuid NOT NULL,
+        user_id uuid NOT NULL,
+        item_count integer NOT NULL,
+        last_activity_at timestamp with time zone NOT NULL,
+        created_at timestamp with time zone NOT NULL,
+        updated_at timestamp with time zone,
+        tenant_id uuid NOT NULL,
+        CONSTRAINT pk_cart_activities PRIMARY KEY (id),
+        CONSTRAINT fk_cart_activities_tenants_tenant_id FOREIGN KEY (tenant_id) REFERENCES core.tenants (id) ON DELETE RESTRICT,
+        CONSTRAINT fk_cart_activities_users_user_id FOREIGN KEY (user_id) REFERENCES identity.users (id) ON DELETE CASCADE
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE TABLE crm.customer_events (
+        id uuid NOT NULL,
+        user_id uuid NOT NULL,
+        type character varying(30) NOT NULL,
+        reference_id uuid,
+        amount numeric(12,2),
+        occurred_at timestamp with time zone NOT NULL,
+        processed_at timestamp with time zone,
+        created_at timestamp with time zone NOT NULL,
+        updated_at timestamp with time zone,
+        tenant_id uuid NOT NULL,
+        CONSTRAINT pk_customer_events PRIMARY KEY (id),
+        CONSTRAINT fk_customer_events_tenants_tenant_id FOREIGN KEY (tenant_id) REFERENCES core.tenants (id) ON DELETE RESTRICT,
+        CONSTRAINT fk_customer_events_users_user_id FOREIGN KEY (user_id) REFERENCES identity.users (id) ON DELETE CASCADE
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE TABLE crm.customer_segments (
+        id uuid NOT NULL,
+        name character varying(120) NOT NULL,
+        description character varying(500) NOT NULL,
+        created_at timestamp with time zone NOT NULL,
+        updated_at timestamp with time zone,
+        tenant_id uuid NOT NULL,
+        rules jsonb NOT NULL,
+        CONSTRAINT pk_customer_segments PRIMARY KEY (id),
+        CONSTRAINT fk_customer_segments_tenants_tenant_id FOREIGN KEY (tenant_id) REFERENCES core.tenants (id) ON DELETE RESTRICT
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE UNIQUE INDEX ix_automation_runs_tenant_id_dedup_key ON crm.automation_runs (tenant_id, dedup_key);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_automation_runs_tenant_id_status_scheduled_at ON crm.automation_runs (tenant_id, status, scheduled_at);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_automation_runs_tenant_id_user_id ON crm.automation_runs (tenant_id, user_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_automation_runs_user_id ON crm.automation_runs (user_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_cart_activities_tenant_id ON crm.cart_activities (tenant_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_cart_activities_tenant_id_item_count_last_activity_at ON crm.cart_activities (tenant_id, item_count, last_activity_at);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE UNIQUE INDEX ix_cart_activities_tenant_id_user_id ON crm.cart_activities (tenant_id, user_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE UNIQUE INDEX ix_cart_activities_user_id ON crm.cart_activities (user_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_customer_events_tenant_id ON crm.customer_events (tenant_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_customer_events_tenant_id_processed_at ON crm.customer_events (tenant_id, processed_at);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_customer_events_tenant_id_user_id_occurred_at ON crm.customer_events (tenant_id, user_id, occurred_at);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_customer_events_user_id ON crm.customer_events (user_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE INDEX ix_customer_segments_tenant_id ON crm.customer_segments (tenant_id);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    CREATE UNIQUE INDEX ix_customer_segments_tenant_id_name ON crm.customer_segments (tenant_id, name);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    ALTER TABLE crm.automation_runs ADD CONSTRAINT fk_automation_runs_users_user_id FOREIGN KEY (user_id) REFERENCES identity.users (id) ON DELETE CASCADE;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM core.__ef_migrations_history WHERE "migration_id" = '20261103052032_CrmAutomations') THEN
+    INSERT INTO core.__ef_migrations_history (migration_id, product_version)
+    VALUES ('20261103052032_CrmAutomations', '9.0.22');
+    END IF;
+END $EF$;
 COMMIT;
 

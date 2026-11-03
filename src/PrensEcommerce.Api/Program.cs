@@ -14,6 +14,7 @@ using PrensEcommerce.Api.Common.Errors;
 using PrensEcommerce.Api.Common.Security;
 using PrensEcommerce.Api.Domain;
 using PrensEcommerce.Api.Features.Auth;
+using PrensEcommerce.Api.Features.Automations.Engine;
 using PrensEcommerce.Api.Features.Cart;
 using PrensEcommerce.Api.Features.Checkout;
 using PrensEcommerce.Api.Infrastructure.Payments;
@@ -32,14 +33,15 @@ var postgresConnection = configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("Falta ConnectionStrings:Postgres.");
 
 // AddDbContext (no pool): el contexto depende de ITenantProvider, que es Scoped por petición.
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
     options.UseNpgsql(postgresConnection, npgsql =>
         {
             npgsql.MigrationsHistoryTable("__ef_migrations_history", Schemas.Core);
             npgsql.EnableRetryOnFailure(maxRetryCount: 3);
         })
-        .UseSnakeCaseNamingConvention();
+        .UseSnakeCaseNamingConvention()
+        .AddInterceptors(sp.GetRequiredService<CustomerEventsInterceptor>()); // eventos para CRM/automatizaciones
 
     if (builder.Environment.IsDevelopment())
     {
@@ -101,6 +103,7 @@ builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddFeatureSlices(typeof(Program).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
 builder.Services.AddScoped<CartStore>();
+builder.Services.AddCrmAndAutomations(configuration);
 builder.Services.AddScoped<AuthResponseFactory>();
 builder.Services.AddScoped<UserAccessLoader>();
 builder.Services.AddScoped<TicketQueries>();

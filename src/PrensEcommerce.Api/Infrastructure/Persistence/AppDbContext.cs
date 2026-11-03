@@ -56,6 +56,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     public DbSet<AutomationRun> AutomationRuns => Set<AutomationRun>();
 
+    public DbSet<CustomerEvent> CustomerEvents => Set<CustomerEvent>();
+
+    public DbSet<CartActivity> CartActivities => Set<CartActivity>();
+
+    public DbSet<CustomerSegment> CustomerSegments => Set<CustomerSegment>();
+
     /// <summary>
     /// Leído por el filtro global en cada consulta. EF Core lo parametriza por instancia de
     /// DbContext, así que el modelo cacheado sirve para todos los tenants.
