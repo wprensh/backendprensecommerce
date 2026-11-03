@@ -70,3 +70,37 @@ public sealed class Product : TenantEntity
     /// <summary>Precio con descuento, redondeado a pesos enteros (COP no usa decimales).</summary>
     public decimal FinalPrice => Math.Round(Price * (100 - DiscountPercent) / 100m, 0, MidpointRounding.AwayFromZero);
 }
+
+/// <summary>Producto guardado por un cliente en su lista de favoritos. Único por usuario y producto.</summary>
+public sealed class WishlistItem : TenantEntity
+{
+    public Guid UserId { get; set; }
+
+    public Guid ProductId { get; set; }
+
+    public Product? Product { get; set; }
+}
+
+/// <summary>Opinión de un cliente sobre un producto. Una por cliente y producto; puede editarla.</summary>
+public sealed class ProductReview : TenantEntity
+{
+    public Guid ProductId { get; set; }
+
+    public Guid UserId { get; set; }
+
+    /// <summary>Nombre mostrado al publicar (se copia para no exponer el email del cliente).</summary>
+    public required string AuthorName { get; set; }
+
+    /// <summary>Puntuación de 1 a 5 estrellas.</summary>
+    public int Rating { get; set; }
+
+    public string? Title { get; set; }
+
+    public string Comment { get; set; } = string.Empty;
+
+    /// <summary>El cliente tiene un pedido pagado con este producto.</summary>
+    public bool IsVerifiedPurchase { get; set; }
+
+    /// <summary>La administración puede ocultar una opinión; las ocultas no cuentan en la media.</summary>
+    public bool IsHidden { get; set; }
+}

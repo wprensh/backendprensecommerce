@@ -71,11 +71,11 @@ internal static class DatabaseSeeder
         db.Categories.AddRange(categories.Values);
 
         db.Products.AddRange(
-            new Product { Sku = "AUD-001", Name = "Auriculares inalámbricos", CategoryId = categories["audio"].Id, Price = 399_900m, DiscountPercent = 15, Rating = 4.6m, ReviewCount = 128, Stock = 40 },
-            new Product { Sku = "AUD-002", Name = "Altavoz Bluetooth", CategoryId = categories["audio"].Id, Price = 265_900m, Rating = 4.3m, ReviewCount = 76, Stock = 25 },
-            new Product { Sku = "HOG-001", Name = "Lámpara de mesa", CategoryId = categories["hogar"].Id, Price = 154_900m, DiscountPercent = 10, Rating = 4.1m, ReviewCount = 41, Stock = 60 },
-            new Product { Sku = "DEP-001", Name = "Zapatillas running", CategoryId = categories["deportes"].Id, Price = 449_900m, DiscountPercent = 20, Rating = 4.7m, ReviewCount = 210, Stock = 18 },
-            new Product { Sku = "MOD-001", Name = "Chaqueta impermeable", CategoryId = categories["moda"].Id, Price = 539_900m, Rating = 4.4m, ReviewCount = 55, Stock = 12 });
+            new Product { Sku = "AUD-001", Name = "Auriculares inalámbricos", CategoryId = categories["audio"].Id, Price = 399_900m, DiscountPercent = 15, Stock = 40 },
+            new Product { Sku = "AUD-002", Name = "Altavoz Bluetooth", CategoryId = categories["audio"].Id, Price = 265_900m, Stock = 25 },
+            new Product { Sku = "HOG-001", Name = "Lámpara de mesa", CategoryId = categories["hogar"].Id, Price = 154_900m, DiscountPercent = 10, Stock = 60 },
+            new Product { Sku = "DEP-001", Name = "Zapatillas running", CategoryId = categories["deportes"].Id, Price = 449_900m, DiscountPercent = 20, Stock = 18 },
+            new Product { Sku = "MOD-001", Name = "Chaqueta impermeable", CategoryId = categories["moda"].Id, Price = 539_900m, Stock = 12 });
 
         db.AutomationRules.AddRange(
             new AutomationRule { Name = "Bienvenida", Trigger = AutomationTrigger.UserRegistered, Action = AutomationAction.SendEmail, Configuration = """{"template":"welcome"}""" },

@@ -55,3 +55,29 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(p => new { p.TenantId, p.CategoryId });
     }
 }
+
+internal sealed class WishlistItemConfiguration : IEntityTypeConfiguration<WishlistItem>
+{
+    public void Configure(EntityTypeBuilder<WishlistItem> builder)
+    {
+        builder.ToTable("wishlist_items", Schemas.Catalog);
+        builder.HasOne<User>().WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(w => w.Product).WithMany().HasForeignKey(w => w.ProductId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(w => new { w.TenantId, w.UserId, w.ProductId }).IsUnique();
+    }
+}
+
+internal sealed class ProductReviewConfiguration : IEntityTypeConfiguration<ProductReview>
+{
+    public void Configure(EntityTypeBuilder<ProductReview> builder)
+    {
+        builder.ToTable("product_reviews", Schemas.Catalog);
+        builder.Property(r => r.AuthorName).HasMaxLength(200);
+        builder.Property(r => r.Title).HasMaxLength(150);
+        builder.Property(r => r.Comment).HasMaxLength(2000);
+        builder.HasOne<User>().WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<Product>().WithMany().HasForeignKey(r => r.ProductId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(r => new { r.TenantId, r.ProductId, r.UserId }).IsUnique();
+        builder.HasIndex(r => new { r.ProductId, r.CreatedAt });
+    }
+}

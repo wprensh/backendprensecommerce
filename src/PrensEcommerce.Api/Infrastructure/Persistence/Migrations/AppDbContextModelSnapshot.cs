@@ -1014,6 +1014,81 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.ProductReview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("author_name");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_hidden");
+
+                    b.Property<bool>("IsVerifiedPurchase")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_verified_purchase");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_product_reviews");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_product_reviews_tenant_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_product_reviews_user_id");
+
+                    b.HasIndex("ProductId", "CreatedAt")
+                        .HasDatabaseName("ix_product_reviews_product_id_created_at");
+
+                    b.HasIndex("TenantId", "ProductId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_product_reviews_tenant_id_product_id_user_id");
+
+                    b.ToTable("product_reviews", "catalog");
+                });
+
             modelBuilder.Entity("PrensEcommerce.Api.Domain.Role", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1395,6 +1470,52 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("user_roles", "identity");
                 });
 
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.WishlistItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_wishlist_items");
+
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("ix_wishlist_items_product_id");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_wishlist_items_tenant_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_wishlist_items_user_id");
+
+                    b.HasIndex("TenantId", "UserId", "ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_wishlist_items_tenant_id_user_id_product_id");
+
+                    b.ToTable("wishlist_items", "catalog");
+                });
+
             modelBuilder.Entity("PrensEcommerce.Api.Domain.AutomationRule", b =>
                 {
                     b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
@@ -1759,6 +1880,30 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.ProductReview", b =>
+                {
+                    b.HasOne("PrensEcommerce.Api.Domain.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_reviews_products_product_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_reviews_tenants_tenant_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_reviews_users_user_id");
+                });
+
             modelBuilder.Entity("PrensEcommerce.Api.Domain.Role", b =>
                 {
                     b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
@@ -1854,6 +1999,32 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_user_roles_users_user_id");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.WishlistItem", b =>
+                {
+                    b.HasOne("PrensEcommerce.Api.Domain.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_wishlist_items_products_product_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_wishlist_items_tenants_tenant_id");
+
+                    b.HasOne("PrensEcommerce.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_wishlist_items_users_user_id");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.LoyaltyAccount", b =>
