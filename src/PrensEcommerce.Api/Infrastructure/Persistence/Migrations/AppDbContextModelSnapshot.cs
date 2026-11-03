@@ -943,6 +943,13 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("image_url");
 
+                    b.PrimitiveCollection<List<string>>("Images")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasColumnName("images")
+                        .HasDefaultValueSql("'{}'::text[]");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");

@@ -45,6 +45,7 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Name).HasMaxLength(200);
         builder.Property(p => p.Description).HasMaxLength(4000);
         builder.Property(p => p.ImageUrl).HasMaxLength(1000);
+        builder.Property(p => p.Images).HasDefaultValueSql("'{}'::text[]");
         builder.Property(p => p.Price).HasPrecision(12, 2);
         builder.Property(p => p.Rating).HasPrecision(2, 1);
         builder.Ignore(p => p.FinalPrice);

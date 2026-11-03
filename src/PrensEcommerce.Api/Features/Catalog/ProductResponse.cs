@@ -10,11 +10,11 @@ namespace PrensEcommerce.Api.Features.Catalog;
 public sealed record ProductResponse(
     Guid Id, string Name, string? Sku, string Description, decimal Price, int DiscountPercent,
     string Category, Guid CategoryId, string CategoryName, Guid? BrandId, string? BrandName,
-    string ImageUrl, decimal Rating, int ReviewCount, int Stock, bool IsActive)
+    string ImageUrl, IReadOnlyList<string> Images, decimal Rating, int ReviewCount, int Stock, bool IsActive)
 {
     /// <summary>Proyección traducible a SQL, para no materializar la entidad completa.</summary>
     public static readonly Expression<Func<Product, ProductResponse>> Projection = p =>
         new ProductResponse(p.Id, p.Name, p.Sku, p.Description, p.Price, p.DiscountPercent,
             p.Category!.Slug, p.CategoryId, p.Category.Name, p.BrandId, p.Brand != null ? p.Brand.Name : null,
-            p.ImageUrl, p.Rating, p.ReviewCount, p.Stock, p.IsActive);
+            p.ImageUrl, p.Images, p.Rating, p.ReviewCount, p.Stock, p.IsActive);
 }

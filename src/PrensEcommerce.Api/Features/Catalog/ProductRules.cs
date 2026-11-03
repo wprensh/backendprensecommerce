@@ -16,6 +16,8 @@ public interface IProductData
     Guid CategoryId { get; }
     Guid? BrandId { get; }
     string? ImageUrl { get; }
+    /// <summary>Galería ordenada; si no se envía, se usa <see cref="ImageUrl"/> como única imagen.</summary>
+    IReadOnlyList<string>? Images { get; }
     int Stock { get; }
 }
 
@@ -30,6 +32,9 @@ internal sealed class ProductDataValidator<T> : AbstractValidator<T> where T : I
         RuleFor(c => c.DiscountPercent).InclusiveBetween(0, 100);
         RuleFor(c => c.CategoryId).NotEmpty();
         RuleFor(c => c.ImageUrl).MaximumLength(1000);
+        RuleFor(c => c.Images).Must(i => i is null || i.Count <= ProductRules.MaxImages)
+            .WithMessage($"Un producto admite como máximo {ProductRules.MaxImages} imágenes.");
+        RuleForEach(c => c.Images).NotEmpty().MaximumLength(1000);
         RuleFor(c => c.Stock).GreaterThanOrEqualTo(0);
     }
 }
@@ -56,6 +61,20 @@ internal static class ProductRules
         }
 
         return null;
+    }
+
+    public const int MaxImages = 10;
+
+    /// <summary>Galería limpia (sin vacíos ni duplicados, en el orden recibido) y su imagen principal.</summary>
+    public static (List<string> Images, string Main) NormalizeImages(IProductData data)
+    {
+        var images = (data.Images ?? (string.IsNullOrWhiteSpace(data.ImageUrl) ? [] : [data.ImageUrl]))
+            .Select(i => i.Trim())
+            .Where(i => i.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaxImages)
+            .ToList();
+        return (images, images.FirstOrDefault() ?? string.Empty);
     }
 
     public static string? NormalizeSku(string? sku) =>
