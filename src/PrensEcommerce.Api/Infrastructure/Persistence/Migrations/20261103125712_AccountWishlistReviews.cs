@@ -11,6 +11,9 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // La valoración del catálogo pasa a calcularse con opiniones reales: se quitan las cifras de demostración.
+            migrationBuilder.Sql("UPDATE catalog.products SET rating = 0, review_count = 0;");
+
             migrationBuilder.CreateTable(
                 name: "product_reviews",
                 schema: "catalog",
