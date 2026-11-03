@@ -33,6 +33,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     public DbSet<Brand> Brands => Set<Brand>();
 
+    public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
+
+    public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
+
     // sales
     public DbSet<Order> Orders => Set<Order>();
 
