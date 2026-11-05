@@ -23,7 +23,18 @@ public sealed class ClaudeClientHolder(IConfiguration configuration)
         return string.IsNullOrWhiteSpace(key) ? null : new AnthropicClient { ApiKey = key };
     });
 
+    private long pausedUntilTicks;
+
     public AnthropicClient? Client => client.Value;
+
+    /// <summary>
+    /// Pausa las llamadas a Claude cuando la cuenta no puede usarse (key inválida o sin saldo),
+    /// para no hacer esperar al cliente ni llenar el log en cada mensaje. Se reintenta al acabar la pausa.
+    /// </summary>
+    public void Pause(TimeSpan duration, DateTimeOffset now) =>
+        Interlocked.Exchange(ref pausedUntilTicks, (now + duration).UtcTicks);
+
+    public bool IsPaused(DateTimeOffset now) => now.UtcTicks < Interlocked.Read(ref pausedUntilTicks);
 }
 
 /// <summary>
@@ -43,6 +54,10 @@ public sealed class ClaudeAssistant(
         ["Buscar un producto", "¿Dónde está mi pedido?", "Mis Prens Puntos", "Costo de envío"];
 
     public bool IsConfigured => holder.Client is not null;
+
+    public bool IsPaused(DateTimeOffset now) => holder.IsPaused(now);
+
+    public void Pause(TimeSpan duration, DateTimeOffset now) => holder.Pause(duration, now);
 
     /// <summary>Respuesta de Claude, o <c>null</c> si declinó responder (el handler usa entonces las reglas).</summary>
     public async Task<Response?> ReplyAsync(Guid? userId, Command command, CancellationToken ct)

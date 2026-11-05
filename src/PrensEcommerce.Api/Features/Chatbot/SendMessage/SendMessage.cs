@@ -75,11 +75,15 @@ public static class SendChatMessage
         RulesAssistant rules,
         ClaudeAssistant claude,
         IOptions<ChatbotOptions> options,
+        TimeProvider clock,
         ILogger<Handler> logger) : IHandler
     {
+        /// <summary>Tiempo sin llamar a Claude tras un error de cuenta (key inválida o sin saldo).</summary>
+        public static readonly TimeSpan AccountErrorPause = TimeSpan.FromMinutes(15);
+
         public async Task<Response> HandleAsync(Guid? userId, Command command, CancellationToken ct)
         {
-            if (options.Value.UsesClaude && claude.IsConfigured)
+            if (options.Value.UsesClaude && claude.IsConfigured && !claude.IsPaused(clock.GetUtcNow()))
             {
                 try
                 {
@@ -87,6 +91,13 @@ public static class SendChatMessage
                     {
                         return reply;
                     }
+                }
+                catch (Exception ex) when (IsAccountError(ex))
+                {
+                    // Key inválida o cuenta sin saldo: no tiene sentido reintentar en cada mensaje.
+                    claude.Pause(AccountErrorPause, clock.GetUtcNow());
+                    logger.LogWarning("Claude no disponible ({Error}); responde el asistente por reglas durante {Minutes} min.",
+                        ex.Message.Split('\n')[0], AccountErrorPause.TotalMinutes);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -96,6 +107,16 @@ public static class SendChatMessage
 
             return await rules.ReplyAsync(userId, command.Message, ct);
         }
+
+        /// <summary>Errores de la cuenta de Anthropic que no se arreglan reintentando: key inválida, sin permiso o sin saldo.</summary>
+        public static bool IsAccountError(Exception ex) => ex switch
+        {
+            Anthropic.Exceptions.AnthropicUnauthorizedException => true,
+            Anthropic.Exceptions.AnthropicBadRequestException bad =>
+                bad.Message.Contains("credit balance", StringComparison.OrdinalIgnoreCase) ||
+                bad.Message.Contains("billing", StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
     }
 
     /// <summary>Asistente sin IA: intención por palabras clave y datos reales de la tienda. También son las herramientas de Claude.</summary>
