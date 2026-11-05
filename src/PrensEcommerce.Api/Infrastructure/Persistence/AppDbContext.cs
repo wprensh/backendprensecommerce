@@ -66,6 +66,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     public DbSet<CustomerSegment> CustomerSegments => Set<CustomerSegment>();
 
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+
     /// <summary>
     /// Leído por el filtro global en cada consulta. EF Core lo parametriza por instancia de
     /// DbContext, así que el modelo cacheado sirve para todos los tenants.

@@ -14,6 +14,12 @@ public static class AppPolicies
     /// <summary>Gestión del programa de puntos: rol <c>Admin</c> o <c>Marketing</c>, o permiso <c>crm.write</c>.</summary>
     public const string LoyaltyManager = "loyalty-manager";
 
+    /// <summary>
+    /// Campañas y banner del catálogo: lo gestiona quien administra el catálogo (<c>catalog.write</c>)
+    /// o el marketing (<c>crm.write</c>). Incluye subir las imágenes de las campañas.
+    /// </summary>
+    public const string CampaignManager = "campaign-manager";
+
     public static AuthorizationBuilder AddAppPolicies(this AuthorizationBuilder builder) =>
         builder.AddPolicy(SupportAgent, policy => policy
             .RequireAuthenticatedUser()
@@ -27,6 +33,13 @@ public static class AppPolicies
             .RequireAssertion(ctx =>
                 ctx.User.HasClaim(AppClaims.Role, SystemRoles.Admin) ||
                 ctx.User.HasClaim(AppClaims.Role, SystemRoles.Marketing) ||
+                ctx.User.HasClaim("perm", "crm.write") ||
+                ctx.User.HasClaim("perm", "*")))
+        .AddPolicy(CampaignManager, policy => policy
+            .RequireAuthenticatedUser()
+            .RequireAssertion(ctx =>
+                ctx.User.HasClaim(AppClaims.Role, SystemRoles.Admin) ||
+                ctx.User.HasClaim("perm", "catalog.write") ||
                 ctx.User.HasClaim("perm", "crm.write") ||
                 ctx.User.HasClaim("perm", "*")));
 }

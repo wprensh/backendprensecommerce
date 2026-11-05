@@ -27,11 +27,24 @@ public static class UploadImages
                 .WithName("UploadImages");
     }
 
+    /// <summary>POST /api/admin/media/campaign-images — igual, para los banners de campañas (catálogo o marketing).</summary>
+    public sealed class CampaignEndpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app) =>
+            app.MapPost("/admin/media/campaign-images", async (IFormFileCollection files, Handler handler, CancellationToken ct) =>
+                    (await handler.HandleAsync(files, ct, folder: "campaigns")).Match(TypedResults.Ok))
+                .RequireAuthorization(Common.Security.AppPolicies.CampaignManager)
+                .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(60 * 1024 * 1024))
+                .DisableAntiforgery()
+                .WithTags("Media")
+                .WithName("UploadCampaignImages");
+    }
+
     public sealed class Handler(IMediaStorage storage, ITenantProvider tenant, IOptions<MediaOptions> options) : IHandler
     {
         public const int MaxFilesPerRequest = ProductRules.MaxImages;
 
-        public async Task<Result<Response>> HandleAsync(IFormFileCollection files, CancellationToken ct)
+        public async Task<Result<Response>> HandleAsync(IFormFileCollection files, CancellationToken ct, string folder = "products")
         {
             if (files.Count == 0)
             {
@@ -68,7 +81,7 @@ public static class UploadImages
             foreach (var (file, extension) in prepared)
             {
                 await using var stream = file.OpenReadStream();
-                urls.Add(await storage.SaveAsync(tenant.TenantId, "products", extension, stream, ct));
+                urls.Add(await storage.SaveAsync(tenant.TenantId, folder, extension, stream, ct));
             }
 
             return new Response(urls);
