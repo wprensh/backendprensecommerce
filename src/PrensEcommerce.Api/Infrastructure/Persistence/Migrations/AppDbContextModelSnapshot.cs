@@ -220,6 +220,105 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("brands", "catalog");
                 });
 
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.Campaign", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CategorySlug")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("category_slug");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CtaLabel")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("cta_label");
+
+                    b.Property<DateTimeOffset?>("EndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at");
+
+                    b.Property<string>("Eyebrow")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("eyebrow");
+
+                    b.Property<string>("ImageAlt")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("image_alt");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("image_url");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer")
+                        .HasColumnName("priority");
+
+                    b.Property<DateTimeOffset?>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<string>("Subtitle")
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)")
+                        .HasColumnName("subtitle");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("theme");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_campaigns");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_campaigns_tenant_id");
+
+                    b.HasIndex("TenantId", "IsActive", "Priority")
+                        .HasDatabaseName("ix_campaigns_tenant_id_is_active_priority");
+
+                    b.ToTable("campaigns", "crm", t =>
+                        {
+                            t.HasCheckConstraint("ck_campaigns_dates", "starts_at IS NULL OR ends_at IS NULL OR ends_at > starts_at");
+                        });
+                });
+
             modelBuilder.Entity("PrensEcommerce.Api.Domain.CartActivity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1564,6 +1663,16 @@ namespace PrensEcommerce.Api.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_brands_tenants_tenant_id");
+                });
+
+            modelBuilder.Entity("PrensEcommerce.Api.Domain.Campaign", b =>
+                {
+                    b.HasOne("PrensEcommerce.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_campaigns_tenants_tenant_id");
                 });
 
             modelBuilder.Entity("PrensEcommerce.Api.Domain.CartActivity", b =>
