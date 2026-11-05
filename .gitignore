@@ -11,3 +11,6 @@ appsettings.*.local.json
 
 # Imágenes subidas en desarrollo
 src/PrensEcommerce.Api/media/
+
+# Volcados de Redis
+dump.rdb

@@ -46,8 +46,8 @@ public class ChatbotTests
     [Fact]
     public void Search_pattern_tolerates_accents()
     {
-        Assert.Equal("%__d_f___%", SendChatMessage.Handler.AccentTolerantPattern("audifono"));
-        Assert.Equal("%l_mp_r_%", SendChatMessage.Handler.AccentTolerantPattern("lampara"));
+        Assert.Equal("%__d_f___%", SendChatMessage.RulesAssistant.AccentTolerantPattern("audifono"));
+        Assert.Equal("%l_mp_r_%", SendChatMessage.RulesAssistant.AccentTolerantPattern("lampara"));
     }
 
     [Fact]
@@ -82,6 +82,35 @@ public class ChatbotTests
     [Fact]
     public void Status_labels_are_in_spanish()
     {
-        Assert.Equal("Enviado", SendChatMessage.Handler.StatusLabel(OrderStatus.Shipped));
+        Assert.Equal("Enviado", SendChatMessage.RulesAssistant.StatusLabel(OrderStatus.Shipped));
+    }
+}
+
+public class ClaudeConversationTests
+{
+    [Fact]
+    public void Conversation_starts_with_user_alternates_and_ends_with_new_message()
+    {
+        var command = new SendChatMessage.Command("¿y en azul?",
+        [
+            new(FromBot: true, "¡Hola! Soy el asistente."),
+            new(FromBot: false, "Busco audífonos"),
+            new(FromBot: true, "Encontré estos productos."),
+            new(FromBot: true, "¿Algo más?"),
+        ]);
+
+        var messages = ClaudeAssistant.BuildConversation(command);
+
+        Assert.Equal(3, messages.Count);
+        Assert.IsType<Anthropic.Models.Messages.UserMessageParam>(messages[0].Value);
+        Assert.IsType<Anthropic.Models.Messages.AssistantMessageParam>(messages[1].Value);
+        Assert.IsType<Anthropic.Models.Messages.UserMessageParam>(messages[2].Value);
+    }
+
+    [Fact]
+    public void Conversation_without_history_is_the_message()
+    {
+        var messages = ClaudeAssistant.BuildConversation(new SendChatMessage.Command("hola"));
+        Assert.Single(messages);
     }
 }
