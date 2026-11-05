@@ -122,8 +122,8 @@ builder.Services.AddOptions<CheckoutOptions>()
     .ValidateOnStart();
 builder.Services.AddPayments(configuration);
 
-// Asistente virtual (chatbot): abierto a visitantes, con límite de mensajes por IP.
-builder.Services.AddChatbotRateLimit();
+// Asistente virtual (chatbot): Claude si hay Anthropic:ApiKey, si no reglas; límite de mensajes por IP.
+builder.Services.AddChatbot(configuration);
 
 // Imágenes subidas desde la administración (disco local; cambiable por S3/Blob).
 builder.Services.AddMedia(configuration);

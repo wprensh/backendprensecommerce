@@ -12,6 +12,18 @@ public static class ChatbotRateLimit
 
     public const int PermitsPerMinute = 20;
 
+    /// <summary>Opciones, motor con Claude y límite por IP del asistente.</summary>
+    public static IServiceCollection AddChatbot(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<ChatbotOptions>()
+            .Bind(configuration.GetSection(ChatbotOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<ClaudeClientHolder>();
+        services.AddScoped<ClaudeAssistant>();
+        return services.AddChatbotRateLimit();
+    }
+
     public static IServiceCollection AddChatbotRateLimit(this IServiceCollection services) =>
         services.AddRateLimiter(options =>
         {

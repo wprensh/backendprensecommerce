@@ -22,7 +22,12 @@ public static class SendChatMessage
 {
     public const int MaxMessageLength = 500;
 
-    public sealed record Command(string Message);
+    /// <summary>Línea previa de la conversación, para que Claude tenga contexto (el motor por reglas la ignora).</summary>
+    public sealed record HistoryLine(bool FromBot, string Text);
+
+    public sealed record Command(string Message, IReadOnlyList<HistoryLine>? History = null);
+
+    public const int MaxHistoryLines = 12;
 
     public sealed record ProductCard(
         Guid Id, string Name, string Category, decimal Price, int DiscountPercent, decimal FinalPrice, string ImageUrl, bool InStock);
@@ -42,7 +47,12 @@ public static class SendChatMessage
 
     public sealed class Validator : AbstractValidator<Command>
     {
-        public Validator() => RuleFor(c => c.Message).NotEmpty().MaximumLength(MaxMessageLength);
+        public Validator()
+        {
+            RuleFor(c => c.Message).NotEmpty().MaximumLength(MaxMessageLength);
+            RuleFor(c => c.History!.Count).LessThanOrEqualTo(MaxHistoryLines).When(c => c.History is not null);
+            RuleForEach(c => c.History).ChildRules(line => line.RuleFor(l => l.Text).NotEmpty().MaximumLength(2000));
+        }
     }
 
     public sealed class Endpoint : IEndpoint
@@ -57,7 +67,39 @@ public static class SendChatMessage
                 .WithName("SendChatMessage");
     }
 
+    /// <summary>
+    /// Elige el motor: Claude (si está configurado) o el asistente por reglas. Si Claude no tiene
+    /// API key, falla o declina responder, contesta el asistente por reglas para no dejar al cliente sin respuesta.
+    /// </summary>
     public sealed class Handler(
+        RulesAssistant rules,
+        ClaudeAssistant claude,
+        IOptions<ChatbotOptions> options,
+        ILogger<Handler> logger) : IHandler
+    {
+        public async Task<Response> HandleAsync(Guid? userId, Command command, CancellationToken ct)
+        {
+            if (options.Value.UsesClaude && claude.IsConfigured)
+            {
+                try
+                {
+                    if (await claude.ReplyAsync(userId, command, ct) is { } reply)
+                    {
+                        return reply;
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Claude no respondió; contesta el asistente por reglas.");
+                }
+            }
+
+            return await rules.ReplyAsync(userId, command.Message, ct);
+        }
+    }
+
+    /// <summary>Asistente sin IA: intención por palabras clave y datos reales de la tienda. También son las herramientas de Claude.</summary>
+    public sealed class RulesAssistant(
         AppDbContext db,
         LoyaltyService loyalty,
         IOptions<CheckoutOptions> checkoutOptions) : IHandler
@@ -65,9 +107,9 @@ public static class SendChatMessage
         private static readonly string[] DefaultSuggestions =
             ["Buscar un producto", "¿Dónde está mi pedido?", "Mis Prens Puntos", "Costo de envío"];
 
-        public async Task<Response> HandleAsync(Guid? userId, Command command, CancellationToken ct)
+        public async Task<Response> ReplyAsync(Guid? userId, string rawMessage, CancellationToken ct)
         {
-            var message = command.Message.Trim();
+            var message = rawMessage.Trim();
             var intent = ChatIntentClassifier.Classify(message);
 
             return intent switch
@@ -94,7 +136,7 @@ public static class SendChatMessage
             };
         }
 
-        private async Task<Response> SearchProductsAsync(string message, CancellationToken ct)
+        public async Task<Response> SearchProductsAsync(string message, CancellationToken ct)
         {
             var terms = ChatIntentClassifier.SearchTerms(message);
             var products = db.Products.AsNoTracking().Where(p => p.IsActive && p.Category!.IsActive);
@@ -159,7 +201,7 @@ public static class SendChatMessage
                     found, [], [catalogLink], ["Costo de envío", "Medios de pago"], CanEscalate: false);
         }
 
-        private async Task<Response> OrderStatusAsync(Guid? userId, string message, CancellationToken ct)
+        public async Task<Response> OrderStatusAsync(Guid? userId, string message, CancellationToken ct)
         {
             if (userId is not { } id)
             {
@@ -200,7 +242,7 @@ public static class SendChatMessage
                 [new("Ver mis pedidos", "/cuenta/pedidos")], ["Costo de envío", "Quiero devolver un producto"], CanEscalate: true);
         }
 
-        private async Task<Response> LoyaltyAsync(Guid? userId, CancellationToken ct)
+        public async Task<Response> LoyaltyAsync(Guid? userId, CancellationToken ct)
         {
             var options = loyalty.Options;
             var rules = $"Ganas 1 punto por cada {TemplateRenderer.FormatMoney(options.PesosPerPoint)} de compra y cada punto vale " +
@@ -234,7 +276,7 @@ public static class SendChatMessage
                 [new("Ver mis Prens Puntos", "/loyalty")], ["Buscar un producto"], CanEscalate: false);
         }
 
-        private Response Shipping()
+        public Response Shipping()
         {
             var options = checkoutOptions.Value;
             var reply = $"El envío a domicilio cuesta {TemplateRenderer.FormatMoney(options.ShippingCost)}";
@@ -247,12 +289,12 @@ public static class SendChatMessage
                 ["Medios de pago", "¿Dónde está mi pedido?"], CanEscalate: false);
         }
 
-        private static Response Payment() => new(ChatIntent.Payment,
+        public static Response Payment() => new(ChatIntent.Payment,
             "Puedes pagar con tarjeta de crédito o débito, transferencia o efectivo. El pago con tarjeta se procesa al confirmar " +
             "el pedido y tus Prens Puntos se pueden usar como cupón de descuento en el checkout.",
             [], [], [new("Ir al carrito", "/cart")], ["Costo de envío", "Mis Prens Puntos"], CanEscalate: false);
 
-        private static Response Returns(Guid? userId) => new(ChatIntent.Returns,
+        public static Response Returns(Guid? userId) => new(ChatIntent.Returns,
             "Si un producto llegó dañado o no es lo que esperabas, abre un caso de soporte indicando el pedido y te ayudamos " +
             "con la devolución o el cambio." + (userId is null ? " Para abrir el caso necesitas iniciar sesión." : ""),
             [], [],
