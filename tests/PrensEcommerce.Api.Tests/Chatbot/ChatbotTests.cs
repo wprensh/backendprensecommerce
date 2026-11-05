@@ -114,3 +114,24 @@ public class ClaudeConversationTests
         Assert.Single(messages);
     }
 }
+
+public class ClaudePauseTests
+{
+    [Fact]
+    public void Pause_blocks_claude_until_it_expires()
+    {
+        var holder = new ClaudeClientHolder(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+        var now = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+
+        Assert.False(holder.IsPaused(now));
+        holder.Pause(TimeSpan.FromMinutes(15), now);
+        Assert.True(holder.IsPaused(now.AddMinutes(14)));
+        Assert.False(holder.IsPaused(now.AddMinutes(16)));
+    }
+
+    [Fact]
+    public void Generic_errors_are_not_account_errors()
+    {
+        Assert.False(SendChatMessage.Handler.IsAccountError(new HttpRequestException("timeout")));
+    }
+}
