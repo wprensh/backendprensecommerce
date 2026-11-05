@@ -123,8 +123,9 @@ public static class CampaignMapping
         c.ImageAlt = NullIfEmpty(command.ImageAlt);
         c.CategorySlug = NullIfEmpty(command.CategorySlug)?.ToLowerInvariant();
         c.Theme = command.Theme;
-        c.StartsAt = command.StartsAt;
-        c.EndsAt = command.EndsAt;
+        // Npgsql solo guarda timestamptz con offset 0: «2026-11-26T00:00:00-05:00» daría 500.
+        c.StartsAt = command.StartsAt?.ToUniversalTime();
+        c.EndsAt = command.EndsAt?.ToUniversalTime();
         c.Priority = command.Priority;
         c.IsActive = command.IsActive;
     }

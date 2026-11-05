@@ -86,4 +86,18 @@ public sealed class CampaignRulesTests
             StartsAt: Now, EndsAt: Now.AddDays(-1));
         Assert.False(new CampaignCommandValidator().Validate(command).IsValid);
     }
+
+    [Fact]
+    public void Apply_ConvierteLasFechasAUtc()
+    {
+        var campaign = Make();
+        var bogota = TimeSpan.FromHours(-5);
+        campaign.Apply(new CampaignCommand("Otoño", null, "Título", null, null, null, null, null,
+            StartsAt: new DateTimeOffset(2026, 11, 5, 8, 0, 0, bogota),
+            EndsAt: new DateTimeOffset(2026, 11, 26, 0, 0, 0, bogota)));
+
+        Assert.Equal(TimeSpan.Zero, campaign.StartsAt!.Value.Offset);
+        Assert.Equal(new DateTimeOffset(2026, 11, 5, 13, 0, 0, TimeSpan.Zero), campaign.StartsAt);
+        Assert.Equal(new DateTimeOffset(2026, 11, 26, 5, 0, 0, TimeSpan.Zero), campaign.EndsAt);
+    }
 }
