@@ -16,6 +16,7 @@ using PrensEcommerce.Api.Domain;
 using PrensEcommerce.Api.Features.Auth;
 using PrensEcommerce.Api.Features.Automations.Engine;
 using PrensEcommerce.Api.Features.Cart;
+using PrensEcommerce.Api.Features.Chatbot;
 using PrensEcommerce.Api.Features.Checkout;
 using PrensEcommerce.Api.Infrastructure.Media;
 using PrensEcommerce.Api.Infrastructure.Payments;
@@ -121,6 +122,9 @@ builder.Services.AddOptions<CheckoutOptions>()
     .ValidateOnStart();
 builder.Services.AddPayments(configuration);
 
+// Asistente virtual (chatbot): abierto a visitantes, con límite de mensajes por IP.
+builder.Services.AddChatbotRateLimit();
+
 // Imágenes subidas desde la administración (disco local; cambiable por S3/Blob).
 builder.Services.AddMedia(configuration);
 
@@ -167,6 +171,7 @@ app.UseMedia();              // imágenes públicas: antes de exigir tenant
 app.UseAuthentication();     // 1º: conocer al usuario (y su claim tenant_id)
 app.UseTenantResolution();   // 2º: resolver tenant y validar que coincide con el token
 app.UseAuthorization();      // 3º: políticas, ya con tenant disponible
+app.UseRateLimiter();        // límites por endpoint (p. ej. el chatbot)
 
 app.MapHealthChecks("/health");
 app.MapFeatureSlices("/api");
